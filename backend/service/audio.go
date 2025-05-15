@@ -1,7 +1,10 @@
 package service
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -11,13 +14,15 @@ import (
 
 // AudioService 处理音频相关的业务逻辑
 type AudioService struct {
-	UploadDir string
+	UploadDir       string
+	ModelServiceURL string
 }
 
 // NewAudioService 创建新的AudioService实例
 func NewAudioService() *AudioService {
 	return &AudioService{
-		UploadDir: "uploads",
+		UploadDir:       "uploads",
+		ModelServiceURL: "http://localhost:5000",
 	}
 }
 
@@ -50,6 +55,20 @@ type Task struct {
 	AudioID   string    `json:"audio_id"`
 }
 
+// CloneVoiceRequest 表示发送给模型服务的请求
+type CloneVoiceRequest struct {
+	TaskID  string `json:"task_id"`
+	AudioID string `json:"audio_id"`
+	Text    string `json:"text,omitempty"`
+}
+
+// CloneVoiceResponse 表示从模型服务收到的响应
+type CloneVoiceResponse struct {
+	Message string `json:"message"`
+	TaskID  string `json:"task_id"`
+	Error   string `json:"error,omitempty"`
+}
+
 // CloneVoice 处理语音克隆请求
 func (s *AudioService) CloneVoice(audioID string) (*Task, error) {
 	// 创建新任务
@@ -60,20 +79,82 @@ func (s *AudioService) CloneVoice(audioID string) (*Task, error) {
 		AudioID:   audioID,
 	}
 
-	// TODO: 调用模型服务进行语音克隆
-	// 这里需要实现与Python模型服务的通信逻辑
+	// 准备API请求
+	reqBody := CloneVoiceRequest{
+		TaskID:  task.ID,
+		AudioID: audioID,
+	}
+
+	reqData, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %v", err)
+	}
+
+	// 发送请求到Python模型服务
+	resp, err := http.Post(
+		fmt.Sprintf("%s/api/clone", s.ModelServiceURL),
+		"application/json",
+		bytes.NewBuffer(reqData),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request to model service: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// 检查响应状态
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("model service returned error status: %d", resp.StatusCode)
+	}
+
+	// 解析响应
+	var apiResp CloneVoiceResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	// 检查错误
+	if apiResp.Error != "" {
+		return nil, fmt.Errorf("model service error: %s", apiResp.Error)
+	}
 
 	return task, nil
 }
 
+// TaskStatusResponse 表示任务状态的API响应
+type TaskStatusResponse struct {
+	TaskID     string  `json:"task_id"`
+	Status     string  `json:"status"`
+	CreatedAt  float64 `json:"created_at"`
+	ResultPath string  `json:"result_path,omitempty"`
+	Error      string  `json:"error,omitempty"`
+}
+
 // GetTaskStatus 获取任务状态
 func (s *AudioService) GetTaskStatus(taskID string) (*Task, error) {
-	// TODO: 实现从存储中获取任务状态的逻辑
-	// 这里需要添加数据库或缓存的实现
+	// 发送请求到Python模型服务
+	resp, err := http.Get(fmt.Sprintf("%s/api/task/%s", s.ModelServiceURL, taskID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get task status: %v", err)
+	}
+	defer resp.Body.Close()
 
-	return &Task{
-		ID:        taskID,
-		Status:    "processing",
-		CreatedAt: time.Now(),
-	}, nil
+	// 检查响应状态
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("model service returned error status: %d", resp.StatusCode)
+	}
+
+	// 解析响应
+	var statusResp TaskStatusResponse
+	if err := json.NewDecoder(resp.Body).Decode(&statusResp); err != nil {
+		return nil, fmt.Errorf("failed to decode status response: %v", err)
+	}
+
+	// 转换为Task结构
+	task := &Task{
+		ID:        statusResp.TaskID,
+		Status:    statusResp.Status,
+		CreatedAt: time.Unix(int64(statusResp.CreatedAt), 0),
+	}
+
+	return task, nil
 }
