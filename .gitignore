@@ -46,6 +46,9 @@ log/
 
 # Project specific
 uploads/
+data/*
+!data/.gitkeep
+!data/README.md
 
 # Database
 *.db
