@@ -35,16 +35,21 @@
                         <label for="voice-file">
                             <div class="upload-area">
                                 <span>点击或拖拽上传音频文件</span>
-                                <small>支持 WAV, MP3 格式</small>
+                                <small>支持 WAV, MP3 格式，上传后将自动显示在下方列表</small>
+                                <div id="status-message" class="message"></div>
                             </div>
                         </label>
                     </div>
-                    <button class="start-clone" onclick="startClone()">开始克隆</button>
+                    <button class="start-clone" onclick="startClone()">处理所选音频</button>
+                    <small class="process-hint">上传音频后，点击此按钮开始进行声音克隆处理</small>
                 </div>
             </div>
 
             <div id="voice-list" class="tab-content">
                 <h2>我的声音</h2>
+                <div class="voice-list-header">
+                    <h3>我的音频列表</h3>
+                </div>
                 <div class="voice-list">
                     <!-- 声音列表将通过JavaScript动态添加 -->
                 </div>

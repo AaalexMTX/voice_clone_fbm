@@ -213,7 +213,10 @@ func StreamAudio(c *gin.Context) {
 	}
 
 	// 设置响应头
-	c.Header("Content-Type", "audio/"+audio.FileType)
+	c.Header("Content-Type", fmt.Sprintf("audio/%s", audio.FileType))
+	c.Header("Accept-Ranges", "bytes")
 	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", audio.Name))
+
+	// 使用 c.File 提供文件下载
 	c.File(audio.FilePath)
 }

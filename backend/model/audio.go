@@ -17,7 +17,7 @@ type Audio struct {
 	Duration    float64    `gorm:"type:decimal(10,2)" json:"duration"`               // 音频时长(秒)
 	Status      string     `gorm:"type:varchar(20);default:'pending'" json:"status"` // 处理状态(pending/processing/completed/failed)
 	ProcessedAt *time.Time `json:"processed_at"`                                     // 处理完成时间，使用指针允许null值
-	Content     string     `json:"content"`                                          // 新增：音频对应的文本内容
+	Content     string     `gorm:"type:text" json:"content"`                         // 音频对应的文本内容
 	gorm.Model
 }
 

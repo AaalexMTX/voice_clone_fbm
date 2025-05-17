@@ -138,6 +138,9 @@ function displayAudioList(audios) {
                     placeholder="请输入音频对应的文本内容"
                     onchange="updateAudioContent(${audio.id}, this.value)"
                 >${audio.content || ''}</textarea>
+                <button class="save-btn" onclick="updateAudioContent(${audio.id}, this.previousElementSibling.value)">
+                    <i class="fas fa-save"></i> 保存文本
+                </button>
             </div>
         `;
         container.appendChild(audioElement);
@@ -170,59 +173,169 @@ async function deleteAudio(id) {
     }
 }
 
-// 开始克隆
-async function startClone() {
-    const fileInput = document.getElementById('voice-file');
-    const uploadStatus = document.getElementById('upload-status');
+// 文件上传区域的拖放功能
+const uploadArea = document.querySelector('.upload-area');
+const fileInput = document.getElementById('voice-file');
 
-    if (!fileInput.files.length) {
-        showMessage('请先选择音频文件', 'error');
-        return;
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.style.background = '#f1f2f6';
+});
+
+uploadArea.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    uploadArea.style.background = 'none';
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.style.background = 'none';
+
+    const files = e.dataTransfer.files;
+    if (files.length) {
+        fileInput.files = files;
+        uploadAudio(files[0]); // 直接上传文件，不等待点击"开始克隆"
     }
+});
 
-    const file = fileInput.files[0];
-    // 检查文件类型
-    if (!file.type.startsWith('audio/')) {
-        showMessage('请上传音频文件（MP3或WAV格式）', 'error');
-        return;
+// 文件选择变化时自动上传
+fileInput.addEventListener('change', (e) => {
+    if (fileInput.files.length > 0) {
+        uploadAudio(fileInput.files[0]);
     }
+});
 
-    const formData = new FormData();
-    formData.append('audio', file);
-
+// 上传音频文件
+async function uploadAudio(file) {
     try {
-        // 显示上传状态
+        // 检查文件类型
+        if (!file.type.startsWith('audio/')) {
+            showMessage('请上传音频文件（MP3或WAV格式）', 'error');
+            return;
+        }
+
+        // 显示文件预览
+        showFilePreview(file);
+
         showMessage('正在上传音频文件...', 'info');
 
-        const response = await fetch(`${API_BASE_URL}/audio/upload`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: formData,
+        const formData = new FormData();
+        formData.append('audio', file);
+
+        // 创建 XMLHttpRequest 对象以支持进度显示
+        const xhr = new XMLHttpRequest();
+        const promise = new Promise((resolve, reject) => {
+            xhr.upload.onprogress = function (e) {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    updateUploadProgress(percentComplete);
+                }
+            };
+
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    resolve(JSON.parse(xhr.responseText));
+                } else {
+                    reject(new Error(xhr.responseText));
+                }
+            };
+
+            xhr.onerror = function () {
+                reject(new Error('网络错误'));
+            };
         });
 
-        const data = await response.json();
-        if (response.ok) {
-            showMessage('音频上传成功！', 'success');
-            console.log('音频上传成功:', data);  // 添加日志
+        xhr.open('POST', `${API_BASE_URL}/audio/upload`);
+        xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('token')}`);
+        xhr.send(formData);
 
-            // 清空文件输入
-            fileInput.value = '';
+        const data = await promise;
+        showMessage('音频上传成功！', 'success');
+        console.log('音频上传成功:', data);
 
-            // 重新加载音频列表
-            await loadAudioList();
+        // 清空文件输入和进度条
+        fileInput.value = '';
+        clearUploadProgress();
 
-            // 滚动到音频列表
-            document.querySelector('.voice-list').scrollIntoView({ behavior: 'smooth' });
-        } else {
-            showMessage(data.error || '上传失败', 'error');
-            console.error('上传失败:', data.error);  // 添加错误日志
-        }
+        // 重新加载音频列表
+        await loadAudioList();
+
+        // 滚动到音频列表
+        document.querySelector('.voice-list').scrollIntoView({ behavior: 'smooth' });
     } catch (error) {
         showMessage('网络错误，请稍后重试', 'error');
-        console.error('上传错误:', error);  // 添加错误日志
+        console.error('上传错误:', error);
+        clearUploadProgress();
     }
+}
+
+// 显示文件预览
+function showFilePreview(file) {
+    const uploadArea = document.querySelector('.upload-area');
+    uploadArea.innerHTML = `
+        <div class="file-preview">
+            <div class="file-info">
+                <span class="file-name">${file.name}</span>
+                <span class="file-size">${formatFileSize(file.size)}</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress" style="width: 0%"></div>
+            </div>
+            <button class="cancel-upload" onclick="cancelUpload()">取消</button>
+        </div>
+    `;
+}
+
+// 更新上传进度
+function updateUploadProgress(percent) {
+    const progress = document.querySelector('.progress');
+    if (progress) {
+        progress.style.width = `${percent}%`;
+    }
+}
+
+// 清除上传进度和预览
+function clearUploadProgress() {
+    const uploadArea = document.querySelector('.upload-area');
+    uploadArea.innerHTML = `
+        <span>点击或拖拽上传音频文件</span>
+        <small>支持 WAV, MP3 格式，上传后将自动显示在下方列表</small>
+        <div id="status-message" class="message"></div>
+    `;
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 取消上传
+function cancelUpload() {
+    // 清除文件输入
+    fileInput.value = '';
+    clearUploadProgress();
+    showMessage('已取消上传', 'info');
+}
+
+// 开始克隆 - 现在只做后续处理，不再负责上传
+async function startClone() {
+    const fileInput = document.getElementById('voice-file');
+
+    // 检查是否有选择文件
+    if (!fileInput.files.length) {
+        showMessage('请先选择或上传音频文件', 'error');
+        return;
+    }
+
+    // 这里添加开始克隆的业务逻辑
+    showMessage('开始克隆，请等待处理完成...', 'info');
+
+    // 后续可以添加调用克隆API的逻辑
+    // const response = await fetch(`${API_BASE_URL}/audio/clone`, ...);
 }
 
 // 显示消息提示
@@ -269,33 +382,11 @@ function formatDate(dateStr) {
     });
 }
 
-// 文件上传区域的拖放功能
-const uploadArea = document.querySelector('.upload-area');
-const fileInput = document.getElementById('voice-file');
-
-uploadArea.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    uploadArea.style.background = '#f1f2f6';
-});
-
-uploadArea.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    uploadArea.style.background = 'none';
-});
-
-uploadArea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    uploadArea.style.background = 'none';
-
-    const files = e.dataTransfer.files;
-    if (files.length) {
-        fileInput.files = files;
-    }
-});
-
 // 更新音频内容
 async function updateAudioContent(audioId, content) {
     try {
+        showMessage('正在保存文本...', 'info');
+
         const response = await fetch(`${API_BASE_URL}/audio/${audioId}/content`, {
             method: 'PUT',
             headers: {
@@ -307,10 +398,10 @@ async function updateAudioContent(audioId, content) {
 
         const data = await response.json();
         if (response.ok) {
-            showMessage('内容更新成功', 'success');
+            showMessage('文本保存成功', 'success');
             console.log('音频内容更新成功:', data);
         } else {
-            showMessage(data.error || '更新失败', 'error');
+            showMessage(data.error || '保存失败', 'error');
             console.error('更新失败:', data.error);
         }
     } catch (error) {

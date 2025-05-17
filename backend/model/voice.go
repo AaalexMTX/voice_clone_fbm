@@ -6,8 +6,11 @@ import (
 	"path/filepath"
 )
 
-const (
-	DataDir = "./data/users" // 用户数据根目录
+var (
+	// 获取项目根目录的绝对路径
+	currentDir, _  = os.Getwd()
+	ProjectRoot, _ = filepath.Abs(filepath.Join(filepath.Dir(currentDir), ".."))
+	DataDir        = filepath.Join(ProjectRoot, "data")
 )
 
 // InitUserDataDir 初始化用户数据目录
