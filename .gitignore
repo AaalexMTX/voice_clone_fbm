@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.Python
+venv/
+ENV/
+env/
+.env
 
 # Go
 /bin/
@@ -26,10 +31,13 @@ dist-ssr/
 *.njsproj
 *.sln
 *.sw?
+*.swp
+*.swo
 
 # Logs
-logs/
 *.log
+logs/
+log/
 
 # Environment
 .env
@@ -38,3 +46,24 @@ logs/
 
 # Project specific
 uploads/
+
+# Database
+*.db
+*.sqlite3
+
+# Audio files
+*.wav
+*.mp3
+*.ogg
+*.flac
+
+# Model files
+*.pth
+*.pt
+*.onnx
+*.bin
+
+# Temp files
+*.tmp
+.DS_Store
+Thumbs.db
