@@ -1,13 +1,54 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + Vue + TS</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EasyClone - 登录</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+  <div class="container">
+    <div class="login-box">
+      <h2>EasyClone</h2>
+      <div class="form-group">
+        <input type="text" id="username" placeholder="用户名" required>
+      </div>
+      <div class="form-group">
+        <input type="password" id="password" placeholder="密码" required>
+      </div>
+      <div class="form-group">
+        <button onclick="login()">登录</button>
+      </div>
+      <div class="form-group">
+        <a href="#" onclick="showRegister()">没有账号？立即注册</a>
+      </div>
+    </div>
+
+    <div class="register-box" style="display: none;">
+      <h2>注册账号</h2>
+      <div class="form-group">
+        <input type="text" id="reg-username" placeholder="用户名" required>
+      </div>
+      <div class="form-group">
+        <input type="password" id="reg-password" placeholder="密码" required>
+      </div>
+      <div class="form-group">
+        <input type="email" id="reg-email" placeholder="邮箱" required>
+      </div>
+      <div class="form-group">
+        <input type="text" id="reg-nickname" placeholder="昵称">
+      </div>
+      <div class="form-group">
+        <button onclick="register()">注册</button>
+      </div>
+      <div class="form-group">
+        <a href="#" onclick="showLogin()">已有账号？返回登录</a>
+      </div>
+    </div>
+  </div>
+  <script src="js/auth.js"></script>
+</body>
+
 </html>

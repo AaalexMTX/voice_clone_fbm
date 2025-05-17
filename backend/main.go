@@ -1,57 +1,32 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"github.com/gin-gonic/gin"
-	"github.com/gin-contrib/cors"
+
+	"voice_clone_fbm/backend/config"
+	"voice_clone_fbm/backend/model"
+	"voice_clone_fbm/backend/router"
 )
 
 func main() {
-	// 创建Gin引擎
-	r := gin.Default()
-
-	// 配置CORS
-	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:3000"}
-	r.Use(cors.New(config))
-
-	// API路由组
-	api := r.Group("/api")
-	{
-		// 音频处理相关接口
-		api.POST("/upload", handleAudioUpload)
-		api.POST("/clone", handleVoiceClone)
-		api.GET("/status/:taskId", getTaskStatus)
+	// 初始化配置
+	if err := config.Init(); err != nil {
+		log.Fatalf("配置初始化失败: %v", err)
 	}
+
+	// 初始化数据库
+	if err := model.InitDB(); err != nil {
+		log.Fatalf("数据库初始化失败: %v", err)
+	}
+
+	// 初始化路由
+	r := router.InitRouter()
 
 	// 启动服务器
-	if err := r.Run(":8080"); err != nil {
-		log.Fatal("Failed to start server: ", err)
+	addr := fmt.Sprintf("%s:%d", config.GlobalConfig.Server.Host, config.GlobalConfig.Server.Port)
+	log.Printf("服务器启动在 %s", addr)
+	if err := r.Run(addr); err != nil {
+		log.Fatalf("服务器启动失败: %v", err)
 	}
-}
-
-// 处理音频上传
-func handleAudioUpload(c *gin.Context) {
-	// TODO: 实现音频上传逻辑
-	c.JSON(200, gin.H{
-		"message": "Audio upload endpoint",
-	})
-}
-
-// 处理语音克隆
-func handleVoiceClone(c *gin.Context) {
-	// TODO: 实现语音克隆逻辑
-	c.JSON(200, gin.H{
-		"message": "Voice clone endpoint",
-	})
-}
-
-// 获取任务状态
-func getTaskStatus(c *gin.Context) {
-	taskId := c.Param("taskId")
-	// TODO: 实现任务状态查询逻辑
-	c.JSON(200, gin.H{
-		"taskId": taskId,
-		"status": "pending",
-	})
 }

@@ -3,4 +3,6 @@ numpy>=1.19.0
 librosa>=0.8.0
 soundfile>=0.10.3
 flask>=2.0.0
-scipy>=1.7.0 
+scipy>=1.7.0
+matplotlib>=3.5.0
+flask-cors>=3.0.0 

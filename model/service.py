@@ -4,12 +4,14 @@ import numpy as np
 import json
 import time
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 from .model import VoiceCloneModel
 from .encoder import preprocess_wav, save_wav, SpeakerEncoder
 from .decoder import SimpleVocoder
 
 app = Flask(__name__)
+CORS(app)
 
 # 模型实例
 voice_clone_model = None
@@ -157,6 +159,15 @@ def get_task_status(task_id):
         response["error"] = task["error"]
     
     return jsonify(response)
+
+@app.route('/test', methods=['POST'])
+def test_endpoint():
+    data = request.get_json()
+    return jsonify({
+        'status': 'success',
+        'received_text': data.get('text', ''),
+        'model_status': 'running'
+    })
 
 def start_model_service(host='0.0.0.0', port=5000, debug=False):
     """启动模型服务"""

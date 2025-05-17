@@ -1,0 +1,83 @@
+package model
+
+import (
+	"fmt"
+	"voice_clone_fbm/backend/config"
+
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+)
+
+var DB *gorm.DB
+
+// InitDB 初始化数据库连接
+func InitDB() error {
+	var err error
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=%v&loc=%s",
+		config.GlobalConfig.Database.Username,
+		config.GlobalConfig.Database.Password,
+		config.GlobalConfig.Database.Host,
+		config.GlobalConfig.Database.Port,
+		config.GlobalConfig.Database.DBName,
+		config.GlobalConfig.Database.Charset,
+		config.GlobalConfig.Database.ParseTime,
+		config.GlobalConfig.Database.Loc,
+	)
+
+	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true, // 禁用外键约束
+	})
+	if err != nil {
+		return fmt.Errorf("连接数据库失败: %v", err)
+	}
+
+	// 自动迁移
+	if err := autoMigrate(); err != nil {
+		return fmt.Errorf("数据库迁移失败: %v", err)
+	}
+
+	return nil
+}
+
+// autoMigrate 自动迁移数据库结构
+func autoMigrate() error {
+	// 获取当前数据库中已存在的表
+	tables, err := DB.Migrator().GetTables()
+	if err != nil {
+		return err
+	}
+
+	// 如果表不存在，创建表
+	if !contains(tables, "users") {
+		if err := DB.Migrator().CreateTable(&User{}); err != nil {
+			return err
+		}
+	} else {
+		// 如果表存在，自动迁移（更新表结构）
+		if err := DB.AutoMigrate(&User{}); err != nil {
+			return err
+		}
+	}
+
+	// 删除旧的音频表并重新创建
+	if contains(tables, "audios") {
+		if err := DB.Migrator().DropTable(&Audio{}); err != nil {
+			return err
+		}
+	}
+	if err := DB.Migrator().CreateTable(&Audio{}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// contains 检查切片中是否包含某个字符串
+func contains(slice []string, str string) bool {
+	for _, s := range slice {
+		if s == str {
+			return true
+		}
+	}
+	return false
+}

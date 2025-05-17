@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasyClone - 控制台</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="logo">EasyClone</div>
+        <div class="user-info">
+            <span id="username"></span>
+            <button onclick="logout()">退出登录</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="sidebar">
+            <ul>
+                <li class="active" onclick="switchTab('voice-clone')">语音克隆</li>
+                <li onclick="switchTab('voice-list')">我的声音</li>
+                <li onclick="switchTab('settings')">设置</li>
+            </ul>
+        </div>
+
+        <div class="main-content">
+            <div id="voice-clone" class="tab-content active">
+                <h2>语音克隆</h2>
+                <div class="upload-section">
+                    <div class="upload-box">
+                        <input type="file" id="voice-file" accept="audio/*" hidden>
+                        <label for="voice-file">
+                            <div class="upload-area">
+                                <span>点击或拖拽上传音频文件</span>
+                                <small>支持 WAV, MP3 格式</small>
+                            </div>
+                        </label>
+                    </div>
+                    <button class="start-clone" onclick="startClone()">开始克隆</button>
+                </div>
+            </div>
+
+            <div id="voice-list" class="tab-content">
+                <h2>我的声音</h2>
+                <div class="voice-list">
+                    <!-- 声音列表将通过JavaScript动态添加 -->
+                </div>
+            </div>
+
+            <div id="settings" class="tab-content">
+                <h2>设置</h2>
+                <div class="settings-form">
+                    <div class="form-group">
+                        <label>昵称</label>
+                        <input type="text" id="nickname">
+                    </div>
+                    <div class="form-group">
+                        <label>邮箱</label>
+                        <input type="email" id="email">
+                    </div>
+                    <button onclick="saveSettings()">保存设置</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+</body>
+
+</html>
