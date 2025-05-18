@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function () {
     checkAuth();
     loadUserInfo();
     loadAudioList();
+    loadTrainingAudioList(); // 添加这行，确保页面加载时就加载训练音频列表
 });
 
 // 检查登录状态
@@ -50,6 +51,16 @@ function switchTab(tabId) {
         item.classList.remove('active');
     });
     event.target.classList.add('active');
+
+    // 如果切换到语音克隆标签页，刷新音频列表
+    if (tabId === 'voice-clone') {
+        loadAudioList();
+    }
+
+    // 如果切换到模型训练标签页，加载训练音频列表
+    if (tabId === 'model-training') {
+        loadTrainingAudioList();
+    }
 }
 
 // 退出登录
@@ -121,30 +132,64 @@ function displayAudioList(audios) {
         const audioElement = document.createElement('div');
         audioElement.className = 'voice-item';
         audioElement.innerHTML = `
-            <div class="voice-info">
-                <span class="voice-name">${audio.name}</span>
-                <span class="voice-status ${audio.status}">${getStatusText(audio.status)}</span>
-                <span class="voice-date">${formatDate(audio.createdAt)}</span>
-            </div>
-            <div class="voice-controls">
+            <!-- 左侧音频播放器 -->
+            <div class="voice-player">
                 <audio src="${API_BASE_URL}/audio/stream/${audio.id}" controls preload="none"></audio>
-                <button class="delete-btn" onclick="deleteAudio(${audio.id})">
-                    <i class="fas fa-trash"></i> 删除
-                </button>
+                <div class="audio-info">
+                    <span class="audio-name">${audio.name}</span>
+                    <span class="audio-duration">${formatDuration(audio.duration || 0)}</span>
+                </div>
+                <div class="wave-animation">
+                    ${generateWaveAnimation()}
+                </div>
             </div>
+
+            <!-- 中间文本校对区域 -->
             <div class="voice-content">
                 <textarea
                     class="content-textarea"
-                    placeholder="请输入音频对应的文本内容"
+                    placeholder="请输入音频对应的文本内容..."
                     onchange="updateAudioContent(${audio.id}, this.value)"
                 >${audio.content || ''}</textarea>
-                <button class="save-btn" onclick="updateAudioContent(${audio.id}, this.previousElementSibling.value)">
-                    <i class="fas fa-save"></i> 保存文本
+            </div>
+
+            <!-- 右侧控制按钮区域 -->
+            <div class="voice-actions">
+                <div class="status-badge ${audio.status}">${getStatusText(audio.status)}</div>
+                <button class="verify-btn" onclick="updateAudioContent(${audio.id}, this.parentElement.previousElementSibling.querySelector('.content-textarea').value)">
+                    <span class="verify-icon">✓</span>
+                    验证文本
+                </button>
+                <button class="delete-btn" onclick="deleteAudio(${audio.id})">
+                    <span class="delete-icon">×</span>
                 </button>
             </div>
         `;
         container.appendChild(audioElement);
+
+        // 添加波形动画监听
+        const audioPlayer = audioElement.querySelector('audio');
+        const waveAnimation = audioElement.querySelector('.wave-animation');
+
+        audioPlayer.addEventListener('play', () => {
+            waveAnimation.classList.add('playing');
+        });
+
+        audioPlayer.addEventListener('pause', () => {
+            waveAnimation.classList.remove('playing');
+        });
+
+        audioPlayer.addEventListener('ended', () => {
+            waveAnimation.classList.remove('playing');
+        });
     });
+}
+
+// 生成波形动画HTML
+function generateWaveAnimation() {
+    return Array(20).fill().map(() =>
+        `<div class="wave-bar"></div>`
+    ).join('');
 }
 
 // 删除音频
@@ -298,8 +343,8 @@ function updateUploadProgress(percent) {
 function clearUploadProgress() {
     const uploadArea = document.querySelector('.upload-area');
     uploadArea.innerHTML = `
-        <span>点击或拖拽上传音频文件</span>
-        <small>支持 WAV, MP3 格式，上传后将自动显示在下方列表</small>
+        <span>点击或拖拽上传训练音频</span>
+        <small>支持 WAV, MP3 格式，建议上传5-10分钟的清晰语音</small>
         <div id="status-message" class="message"></div>
     `;
 }
@@ -321,21 +366,21 @@ function cancelUpload() {
     showMessage('已取消上传', 'info');
 }
 
-// 开始克隆 - 现在只做后续处理，不再负责上传
+// 开始训练
 async function startClone() {
     const fileInput = document.getElementById('voice-file');
 
     // 检查是否有选择文件
     if (!fileInput.files.length) {
-        showMessage('请先选择或上传音频文件', 'error');
+        showMessage('请先选择或上传训练音频', 'error');
         return;
     }
 
-    // 这里添加开始克隆的业务逻辑
-    showMessage('开始克隆，请等待处理完成...', 'info');
+    // 这里添加开始训练的业务逻辑
+    showMessage('正在开始模型训练，请耐心等待...', 'info');
 
-    // 后续可以添加调用克隆API的逻辑
-    // const response = await fetch(`${API_BASE_URL}/audio/clone`, ...);
+    // 后续可以添加调用训练API的逻辑
+    // const response = await fetch(`${API_BASE_URL}/audio/train`, ...);
 }
 
 // 显示消息提示
@@ -408,4 +453,173 @@ async function updateAudioContent(audioId, content) {
         showMessage('网络错误，请稍后重试', 'error');
         console.error('更新错误:', error);
     }
+}
+
+// 加载训练音频列表
+async function loadTrainingAudioList() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/audio/list`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            displayTrainingAudioList(data.audios);
+        } else {
+            alert(data.error || '获取音频列表失败');
+        }
+    } catch (error) {
+        alert('网络错误，请稍后重试');
+    }
+}
+
+// 显示训练音频列表
+function displayTrainingAudioList(audios) {
+    const container = document.getElementById('training-audio-list');
+    if (!container) return; // 添加检查，防止在其他页面报错
+
+    container.innerHTML = '';
+
+    if (!audios.length) {
+        container.innerHTML = '<div class="no-audio">暂无可用的训练音频，请先上传音频文件</div>';
+        return;
+    }
+
+    audios.forEach(audio => {
+        const audioElement = document.createElement('div');
+        audioElement.className = 'audio-item';
+        audioElement.innerHTML = `
+            <div class="audio-checkbox">
+                <input type="checkbox" id="audio-${audio.id}" value="${audio.id}">
+                <div class="checkbox-custom"></div>
+            </div>
+            <div class="audio-info">
+                <label class="audio-name" for="audio-${audio.id}">${audio.name}</label>
+                <div class="audio-details">
+                    <span class="audio-duration">${formatDuration(audio.duration || 0)}</span>
+                    <span class="audio-status ${audio.status}">${getStatusText(audio.status)}</span>
+                </div>
+            </div>
+        `;
+        container.appendChild(audioElement);
+    });
+}
+
+// 格式化音频时长
+function formatDuration(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+// 显示训练状态
+function showTrainingStatus(message, type = 'info') {
+    const statusDiv = document.getElementById('training-status');
+    statusDiv.textContent = '';
+
+    // 如果是加载状态，添加加载动画
+    if (type === 'loading') {
+        const loadingSpinner = document.createElement('div');
+        loadingSpinner.className = 'loading';
+        statusDiv.appendChild(loadingSpinner);
+    }
+
+    const messageSpan = document.createElement('span');
+    messageSpan.textContent = message;
+    statusDiv.appendChild(messageSpan);
+
+    statusDiv.className = `training-status ${type}`;
+
+    // 移除之前的show类
+    statusDiv.classList.remove('show');
+
+    // 强制重绘
+    void statusDiv.offsetWidth;
+
+    // 添加show类触发动画
+    statusDiv.classList.add('show');
+}
+
+// 开始训练模型
+async function startTraining() {
+    // 获取选中的音频
+    const selectedAudios = Array.from(document.querySelectorAll('#training-audio-list input[type="checkbox"]:checked'))
+        .map(checkbox => checkbox.value);
+
+    if (selectedAudios.length === 0) {
+        showTrainingStatus('请选择至少一个训练音频', 'error');
+        return;
+    }
+
+    // 获取模型名称
+    const modelName = document.getElementById('model-name').value.trim();
+    if (!modelName) {
+        showTrainingStatus('请输入模型名称', 'error');
+        return;
+    }
+
+    // 获取训练参数
+    const trainingParams = {
+        epochs: parseInt(document.getElementById('epochs').value),
+        batchSize: parseInt(document.getElementById('batch-size').value),
+        learningRate: parseFloat(document.getElementById('learning-rate').value)
+    };
+
+    // 显示训练开始状态
+    showTrainingStatus('正在准备开始训练...', 'loading');
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/model/train`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+                modelName,
+                audioIds: selectedAudios,
+                params: trainingParams
+            })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            showTrainingStatus('模型训练已开始，请耐心等待...', 'success');
+            pollTrainingStatus(data.taskId);
+        } else {
+            showTrainingStatus(data.error || '开始训练失败', 'error');
+        }
+    } catch (error) {
+        showTrainingStatus('网络错误，请稍后重试', 'error');
+    }
+}
+
+// 轮询训练状态
+async function pollTrainingStatus(taskId) {
+    const pollInterval = setInterval(async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/model/status/${taskId}`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                showTrainingStatus(`训练进度: ${data.progress}%`, 'info');
+
+                if (data.status === 'completed') {
+                    clearInterval(pollInterval);
+                    showTrainingStatus('模型训练完成！', 'success');
+                } else if (data.status === 'failed') {
+                    clearInterval(pollInterval);
+                    showTrainingStatus('模型训练失败: ' + data.error, 'error');
+                }
+            }
+        } catch (error) {
+            console.error('获取训练状态失败:', error);
+        }
+    }, 5000); // 每5秒轮询一次
 } 

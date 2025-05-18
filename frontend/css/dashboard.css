@@ -146,28 +146,7 @@ h2 {
     opacity: 1;
 }
 
-.voice-list {
-    margin-top: 30px;
-}
-
-.voice-item {
-    background: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 15px;
-    transition: all 0.3s;
-}
-
-.voice-item:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.voice-info {
-    display: flex;
-    align-items: center;
-    margin-bottom: 10px;
-}
+.voice-list {    margin-top: 30px;    display: flex;    flex-direction: column;    gap: 20px;}.voice-item {    background: #1a1f2e;    border-radius: 12px;    padding: 20px;    display: grid;    grid-template-columns: 1fr 2fr 1fr;    gap: 20px;    align-items: start;    color: #fff;    transition: all 0.3s ease;}.voice-item:hover {    transform: translateY(-2px);    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);}.voice-info {    display: flex;    flex-direction: column;    gap: 8px;}
 
 .voice-name {
     font-weight: 500;
@@ -425,4 +404,606 @@ button:hover {
 
 .cancel-upload:hover {
     background: #c0392b;
+}
+
+.voice-list-section {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid #eee;
+}
+
+.voice-list-section h3 {
+    color: #2c3e50;
+    margin-bottom: 1.5rem;
+    font-size: 1.2rem;
+}
+
+.upload-section {
+    background: #f8f9fa;
+    padding: 2rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.voice-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.voice-item {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.voice-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 模型训练样式 */
+.training-form {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.training-form .form-group {
+    margin-bottom: 2rem;
+}
+
+.training-form label {
+    display: block;
+    margin-bottom: 1rem;
+    color: #2c3e50;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.training-form input[type="text"] {
+    width: 100%;
+    padding: 1rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.training-form input[type="text"]:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    outline: none;
+}
+
+.audio-selection {
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.audio-selection:hover {
+    border-color: #3498db;
+}
+
+.audio-list {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.audio-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.audio-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.audio-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.audio-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+.audio-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 0.8rem;
+    background: white;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.audio-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border-color: #3498db;
+}
+
+.audio-checkbox {
+    position: relative;
+    margin-right: 1rem;
+}
+
+.audio-checkbox input[type="checkbox"] {
+    opacity: 0;
+    position: absolute;
+}
+
+.checkbox-custom {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #3498db;
+    border-radius: 6px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.checkbox-custom::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 12px;
+    height: 12px;
+    background: #3498db;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+.audio-checkbox input[type="checkbox"]:checked + .checkbox-custom::after {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.audio-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.audio-name {
+    font-weight: 500;
+    color: #2c3e50;
+    font-size: 1.1rem;
+}
+
+.audio-details {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.audio-duration {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.audio-duration::before {
+    content: '🕒';
+    font-size: 1rem;
+}
+
+.training-params {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.param-item {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 10px;
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s ease;
+}
+
+.param-item:hover {
+    border-color: #3498db;
+    transform: translateY(-2px);
+}
+
+.param-item label {
+    font-size: 1rem;
+    color: #2c3e50;
+    margin-bottom: 0.8rem;
+}
+
+.param-item input {
+    width: 100%;
+    padding: 0.8rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.param-item input:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    outline: none;
+}
+
+.form-actions {
+    margin-top: 3rem;
+    text-align: center;
+}
+
+.start-training {
+    padding: 1rem 3rem;
+    background: #2ecc71;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(46, 204, 113, 0.2);
+}
+
+.start-training:hover {
+    background: #27ae60;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(46, 204, 113, 0.3);
+}
+
+.start-training:active {
+    transform: translateY(0);
+}
+
+.training-status {
+    margin-top: 1.5rem;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    text-align: center;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
+}
+
+.training-status.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.training-status.info {
+    background: #e3f2fd;
+    color: #1976d2;
+    border-left: 4px solid #1976d2;
+}
+
+.training-status.success {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border-left: 4px solid #2e7d32;
+}
+
+.training-status.error {
+    background: #ffebee;
+    color: #c62828;
+    border-left: 4px solid #c62828;
+}
+
+/* 添加动画效果 */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.audio-item {
+    animation: fadeIn 0.3s ease forwards;
+}
+
+/* 添加加载中动画 */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 三栏布局容器 */
+.audio-grid-container {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 20px;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* 左侧音频播放器列 */
+.audio-player-column {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.audio-player-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.waveform-container {
+    width: 100%;
+    height: 120px;
+    background: #ffffff;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.audio-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.play-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #3498db;
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.play-button:hover {
+    background: #2980b9;
+    transform: scale(1.05);
+}
+
+/* 中间文本校对列 */
+.text-verification-column {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+}
+
+.text-editor {
+    width: 100%;
+    min-height: 200px;
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 16px;
+    line-height: 1.6;
+    resize: vertical;
+    transition: border-color 0.3s ease;
+}
+
+.text-editor:focus {
+    border-color: #3498db;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+/* 右侧验证按钮列 */
+.verification-controls-column {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.verify-button {
+    padding: 12px 20px;
+    background: #2ecc71;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.verify-button:hover {
+    background: #27ae60;
+    transform: translateY(-2px);
+}
+
+.verify-button:active {
+    transform: translateY(0);
+}
+
+.verification-status {
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.verification-status.pending {
+    background: #fff3e0;
+    color: #e65100;
+}
+
+.verification-status.success {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.verification-status.error {
+    background: #ffebee;
+    color: #c62828;
+}
+
+/* 响应式布局 */
+@media screen and (max-width: 1200px) {
+    .audio-grid-container {
+        grid-template-columns: 1fr 1.5fr 1fr;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .audio-grid-container {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.audio-grid-container {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* 波形动画样式 */
+.wave-animation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    height: 40px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    margin-top: 10px;
+}
+
+.wave-bar {
+    width: 3px;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    transition: height 0.2s ease;
+}
+
+.wave-animation.playing .wave-bar {
+    animation: wave 1s ease infinite;
+    animation-delay: calc(var(--bar-index) * 0.1s);
+}
+
+@keyframes wave {
+    0%, 100% {
+        height: 20%;
+    }
+    50% {
+        height: 100%;
+    }
+}
+
+/* 音频控件样式优化 */
+.voice-player audio {
+    width: 100%;
+    height: 36px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.voice-player audio::-webkit-media-controls-panel {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.voice-player audio::-webkit-media-controls-current-time-display,
+.voice-player audio::-webkit-media-controls-time-remaining-display {
+    color: #fff;
+}
+
+.voice-player audio::-webkit-media-controls-play-button {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+}
+
+.voice-player audio::-webkit-media-controls-timeline {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    height: 4px;
+}
+
+/* 响应式布局补充 */
+@media screen and (max-width: 1200px) {
+    .voice-item {
+        grid-template-columns: 1fr 1.5fr 1fr;
+    }
+}
+
+@media screen and (max-width: 992px) {
+    .voice-item {
+        grid-template-columns: 1fr 1fr 0.8fr;
+        gap: 15px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .voice-item {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .voice-player,
+    .voice-content,
+    .voice-actions {
+        width: 100%;
+    }
 } 
