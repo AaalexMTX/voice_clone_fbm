@@ -3,12 +3,22 @@ import torch
 import numpy as np
 import json
 import time
+import logging
+import argparse
+import subprocess
+from pathlib import Path
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-from .model import VoiceCloneModel
-from .encoder import preprocess_wav, save_wav, SpeakerEncoder
-from .decoder import SimpleVocoder
+from ..core.model import VoiceCloneModel
+from ..speaker_encoder import preprocess_wav, SpeakerEncoder
+from ..speaker_encoder.audio_processing import save_wav
+from ..vocoder import Vocoder
+from ..config import load_config, get_config
+
+# 配置日志
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
@@ -22,15 +32,18 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # 任务状态储存
 tasks = {}
 
+# 获取配置
+config = get_config()
+
 # 模型路径配置
-MODEL_DIR = os.environ.get("MODEL_DIR", "saved_models")
+MODEL_DIR = os.environ.get("MODEL_DIR", config["model"]["model_dir"])
 VOICE_CLONE_MODEL_PATH = os.path.join(MODEL_DIR, "voice_clone_model.pt")
 SPEAKER_ENCODER_PATH = os.path.join(MODEL_DIR, "speaker_encoder.pt")
 VOCODER_PATH = os.path.join(MODEL_DIR, "vocoder.pt")
 
 # 数据路径配置
-UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "uploads")
-RESULT_DIR = os.environ.get("RESULT_DIR", "results")
+UPLOAD_DIR = os.environ.get("UPLOAD_DIR", config["data"]["upload_dir"])
+RESULT_DIR = os.environ.get("RESULT_DIR", config["data"]["output_dir"])
 
 def load_models():
     """加载所有需要的模型"""
@@ -39,20 +52,20 @@ def load_models():
     # 创建模型实例
     voice_clone_model = VoiceCloneModel().to(device)
     speaker_encoder = SpeakerEncoder().to(device)
-    vocoder = SimpleVocoder().to(device)
+    vocoder = Vocoder().to(device)
     
     # 加载预训练参数（如果存在）
     if os.path.exists(VOICE_CLONE_MODEL_PATH):
         voice_clone_model.load_state_dict(torch.load(VOICE_CLONE_MODEL_PATH, map_location=device))
-        print(f"加载语音克隆模型: {VOICE_CLONE_MODEL_PATH}")
+        logger.info(f"加载语音克隆模型: {VOICE_CLONE_MODEL_PATH}")
     
     if os.path.exists(SPEAKER_ENCODER_PATH):
         speaker_encoder.load_state_dict(torch.load(SPEAKER_ENCODER_PATH, map_location=device))
-        print(f"加载说话人编码器: {SPEAKER_ENCODER_PATH}")
+        logger.info(f"加载说话人编码器: {SPEAKER_ENCODER_PATH}")
     
     if os.path.exists(VOCODER_PATH):
         vocoder.load_state_dict(torch.load(VOCODER_PATH, map_location=device))
-        print(f"加载声码器: {VOCODER_PATH}")
+        logger.info(f"加载声码器: {VOCODER_PATH}")
     
     # 设置为评估模式
     voice_clone_model.eval()
@@ -87,6 +100,7 @@ def clone_voice():
         return jsonify({"message": "任务已提交", "task_id": task_id})
         
     except Exception as e:
+        logger.error(f"处理克隆请求时出错: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 def process_voice_clone_task(task_id, audio_id, text=''):
@@ -133,7 +147,7 @@ def process_voice_clone_task(task_id, audio_id, text=''):
             tasks[task_id]["result_path"] = output_path
             
     except Exception as e:
-        print(f"任务处理失败: {str(e)}")
+        logger.error(f"任务处理失败: {str(e)}")
         tasks[task_id]["status"] = "failed"
         tasks[task_id]["error"] = str(e)
 
@@ -170,9 +184,69 @@ def test_endpoint():
     })
 
 def start_model_service(host='0.0.0.0', port=5000, debug=False):
-    """启动模型服务"""
+    """启动传统模型服务"""
     load_models()
     app.run(host=host, port=port, debug=debug)
 
-if __name__ == "__main__":
-    start_model_service(debug=True) 
+def start_transformer_server(host='0.0.0.0', port=5001, model_dir='models', device=None):
+    """启动基于Transformer的语音克隆服务器"""
+    logger.info("正在启动基于Transformer的语音克隆服务器...")
+    
+    # 确定脚本路径
+    from ..api import server
+    
+    # 确定设备
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    # 加载配置
+    cfg = get_config()
+    
+    # 设置目录
+    server.setup_dirs()
+    
+    # 初始化模型
+    server.init_model(model_dir, device)
+    
+    # 启动服务器
+    logger.info(f"启动服务器于 {host}:{port}")
+    server.app.run(
+        host=host, 
+        port=port, 
+        debug=cfg["server"]["debug"]
+    )
+
+def main():
+    """命令行入口点"""
+    parser = argparse.ArgumentParser(description="语音克隆服务")
+    parser.add_argument("--type", type=str, choices=["legacy", "transformer"], default="transformer", 
+                       help="服务类型: legacy (旧版) 或 transformer (新版)")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="服务器监听地址")
+    parser.add_argument("--port", type=int, default=5000, help="服务器监听端口")
+    parser.add_argument("--model_dir", type=str, default="models", help="模型目录")
+    parser.add_argument("--device", type=str, default=None, help="设备: cuda 或 cpu")
+    parser.add_argument("--config", type=str, help="配置文件路径")
+    
+    args = parser.parse_args()
+    
+    # 加载配置
+    load_config(args.config)
+    
+    if args.type == "legacy":
+        # 启动传统服务
+        start_model_service(host=args.host, port=args.port)
+    else:
+        # 启动新版Transformer服务
+        start_transformer_server(
+            host=args.host, 
+            port=args.port, 
+            model_dir=args.model_dir,
+            device=args.device
+        )
+        
+        # 让主线程等待，不要立即退出
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("收到中断信号，正在关闭服务器...") 

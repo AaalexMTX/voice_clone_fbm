@@ -1,3 +1,11 @@
-from .audio_visualization import plot_mel_spectrogram, plot_waveform, plot_spectrogram
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
-__all__ = ['plot_mel_spectrogram', 'plot_waveform', 'plot_spectrogram'] 
+"""
+工具函数模块
+"""
+
+# 导入所有工具函数
+from .audio import preprocess_audio, save_audio
+
+__all__ = ['preprocess_audio', 'save_audio'] 

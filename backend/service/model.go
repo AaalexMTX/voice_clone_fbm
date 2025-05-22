@@ -112,9 +112,58 @@ func StartModelTraining(req *ModelTrainReq) (*ModelTrainResp, error) {
 		return nil, fmt.Errorf("提交事务失败: %v", err)
 	}
 
-	// TODO: 实际的模型训练逻辑
-	// 这里应该调用Python模型训练服务
-	// 可以是异步任务，使用消息队列或者HTTP请求
+	// 获取音频文件路径
+	audioPath := audio.FilePath
+	if audioPath == "" {
+		log.Errorf("音频文件路径为空")
+		return nil, fmt.Errorf("音频文件路径为空")
+	}
+
+	// 调用模型层API进行训练
+	// 创建模型客户端
+	modelClient := NewModelClient()
+
+	// 异步处理模型训练
+	go func() {
+		// 更新模型状态为训练中
+		updateModelState(mid, 2, "") // 2表示训练中
+
+		var embeddingID string
+		var outputID string
+		var err error
+
+		// 1. 提取说话人嵌入
+		log.Infof("开始提取说话人嵌入，音频路径: %s", audioPath)
+		embeddingID, err = modelClient.ExtractEmbedding(audioPath)
+		if err != nil {
+			log.Errorf("提取说话人嵌入失败: %v", err)
+			updateModelState(mid, 4, fmt.Sprintf("提取说话人嵌入失败: %v", err)) // 4表示失败
+			return
+		}
+
+		// 2. 使用说话人嵌入合成语音（测试用）
+		log.Infof("开始合成测试音频，文本: %s，说话人嵌入ID: %s", audio.Content, embeddingID)
+		outputID, err = modelClient.SynthesizeSpeech(audio.Content, embeddingID)
+		if err != nil {
+			log.Errorf("合成测试音频失败: %v", err)
+			updateModelState(mid, 4, fmt.Sprintf("合成测试音频失败: %v", err)) // 4表示失败
+			return
+		}
+
+		// 3. 下载生成的音频
+		outputPath := filepath.Join(modelDir, fmt.Sprintf("%s_sample.wav", req.ModelName))
+		log.Infof("下载生成的音频到: %s", outputPath)
+		err = modelClient.DownloadAudio(outputID, outputPath)
+		if err != nil {
+			log.Errorf("下载生成的音频失败: %v", err)
+			updateModelState(mid, 4, fmt.Sprintf("下载生成的音频失败: %v", err)) // 4表示失败
+			return
+		}
+
+		// 更新模型状态为完成
+		updateModelState(mid, 3, "") // 3表示完成
+		log.Infof("模型训练完成，模型ID: %s", mid)
+	}()
 
 	log.Infof("模型训练任务已创建: MID=%s, 音频ID=%s, 用户ID=%s, 模型名称=%s",
 		voiceModel.MID, voiceModel.AID, voiceModel.UID, voiceModel.ModelName)
@@ -126,6 +175,24 @@ func StartModelTraining(req *ModelTrainReq) (*ModelTrainResp, error) {
 		State:     voiceModel.State,
 		CreatedAt: time.Now(),
 	}, nil
+}
+
+// 更新模型状态
+func updateModelState(mid string, state int8, errorMsg string) {
+	var voiceModel model.VoiceModel
+	if err := model.DB.Where("m_id = ?", mid).First(&voiceModel).Error; err != nil {
+		log.Errorf("查询模型失败: %v", err)
+		return
+	}
+
+	// 更新状态
+	voiceModel.State = state
+	voiceModel.ErrorMsg = errorMsg
+	voiceModel.UpdatedAt = time.Now()
+
+	if err := model.DB.Save(&voiceModel).Error; err != nil {
+		log.Errorf("更新模型状态失败: %v", err)
+	}
 }
 
 // GetUserModels 获取用户的所有模型
