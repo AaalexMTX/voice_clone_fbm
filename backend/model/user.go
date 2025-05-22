@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"strings"
+	"voice_clone_fbm/backend/utils"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -41,7 +42,7 @@ func (u *User) Create() error {
 		return err
 	}
 	// 创建用户数据目录
-	return InitUserDataDir(u.Username)
+	return utils.InitUserDataDir(u.Username)
 }
 
 // GetByUsername 通过用户名获取用户

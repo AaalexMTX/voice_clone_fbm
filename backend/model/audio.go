@@ -46,7 +46,7 @@ func (a *Audio) Create(db *gorm.DB) error {
 // GetAudioByAID 通过AID获取音频
 func GetAudioByAID(aid string) (*Audio, error) {
 	var audio Audio
-	err := DB.Where("aid = ?", aid).First(&audio).Error
+	err := DB.Where("a_id = ?", aid).First(&audio).Error
 	return &audio, err
 }
 
@@ -62,7 +62,7 @@ func (a *Audio) Delete() error {
 
 // BatchDeleteAudios 批量删除音频
 func BatchDeleteAudios(aids []string) error {
-	return DB.Where("aid IN ?", aids).Delete(&Audio{}).Error
+	return DB.Where("a_id IN ?", aids).Delete(&Audio{}).Error
 }
 
 // UpdateAudioStatus 更新音频状态
@@ -126,7 +126,7 @@ func (a *Audio) IsFailed() bool {
 func GetUserAudios(uid string) ([]Audio, error) {
 	var audios []Audio
 	err := DB.Table("audios as a").
-		Joins("LEFT JOIN user_audios ua ON a.aid = ua.aid").
+		Joins("LEFT JOIN user_audios ua ON a.a_id = ua.a_id").
 		Where("ua.uid = ? AND a.deleted_at IS NULL", uid).
 		Order("a.created_at DESC").
 		Find(&audios).Error
@@ -135,5 +135,5 @@ func GetUserAudios(uid string) ([]Audio, error) {
 
 // 无db参数的根据AID获取音频
 func (a *Audio) GetByAID(aid string) error {
-	return DB.Where("aid = ?", aid).First(a).Error
+	return DB.Where("a_id = ?", aid).First(a).Error
 }

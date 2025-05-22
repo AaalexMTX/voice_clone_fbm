@@ -6,13 +6,13 @@ import (
 
 // UserAudioModel 用户音频模型表
 type UserAudioModel struct {
-	MID       string         `gorm:"type:char(32);index;not null" json:"mid"`       // 模型ID
-	UID       string         `gorm:"type:char(32);index;not null" json:"uid"`       // 用户ID
-	AID       string         `gorm:"type:char(32);index;not null" json:"aid"`       // 音频ID
-	ModelPath string         `gorm:"type:varchar(255)" json:"model_path"`           // 模型文件路径
-	Status    int8           `gorm:"type:tinyint;default:1" json:"status"`          // 状态：1待训练 2已完成 3失败
-	Params    string         `gorm:"type:text" json:"params"`                       // 训练参数(JSON)
-	ErrorMsg  string         `gorm:"type:varchar(512)" json:"error_msg"`            // 错误信息
+	MID       string `gorm:"type:char(32);index;not null" json:"mid"` // 模型ID
+	UID       string `gorm:"type:char(32);index;not null" json:"uid"` // 用户ID
+	AID       string `gorm:"type:char(32);index;not null" json:"aid"` // 音频ID
+	ModelPath string `gorm:"type:varchar(255)" json:"model_path"`     // 模型文件路径
+	Status    int8   `gorm:"type:tinyint;default:1" json:"status"`    // 状态：1待训练 2已完成 3失败
+	Params    string `gorm:"type:text" json:"params"`                 // 训练参数(JSON)
+	ErrorMsg  string `gorm:"type:varchar(512)" json:"error_msg"`      // 错误信息
 	gorm.Model
 }
 
@@ -51,7 +51,7 @@ func (m *UserAudioModel) GetByUID(db *gorm.DB, uid string) ([]UserAudioModel, er
 // GetByAID 获取音频相关的所有模型
 func (m *UserAudioModel) GetByAID(db *gorm.DB, aid string) ([]UserAudioModel, error) {
 	var models []UserAudioModel
-	err := db.Where("aid = ?", aid).Find(&models).Error
+	err := db.Where("a_id = ?", aid).Find(&models).Error
 	return models, err
 }
 

@@ -59,13 +59,14 @@ func autoMigrate() error {
 	}
 
 	// 音频表迁移
-	if contains(tables, "audios") {
-		if err := DB.Migrator().DropTable(&Audio{}); err != nil {
+	if !contains(tables, "audios") {
+		if err := DB.Migrator().CreateTable(&Audio{}); err != nil {
 			return err
 		}
-	}
-	if err := DB.Migrator().CreateTable(&Audio{}); err != nil {
-		return err
+	} else {
+		if err := DB.AutoMigrate(&Audio{}); err != nil {
+			return err
+		}
 	}
 
 	// 用户素材表迁移

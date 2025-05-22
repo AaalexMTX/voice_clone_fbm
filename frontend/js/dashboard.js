@@ -145,10 +145,10 @@ function displayAudioList(audios) {
                 >${audio.content || ''}</textarea>
             </div>
             <div class="voice-actions">
-                <button class="update-btn" onclick="updateAudioContent(${audio.id}, this.parentElement.previousElementSibling.querySelector('.content-textarea').value)">
+                <button class="update-btn" onclick="updateAudioContent('${audio.id}', this.parentElement.previousElementSibling.querySelector('.content-textarea').value)">
                     ✓ 更新文本
                 </button>
-                <button class="delete-btn" onclick="deleteAudio(${audio.id})">
+                <button class="delete-btn" onclick="deleteAudio('${audio.id}')">
                     ✕ 删除音频
                 </button>
             </div>
@@ -169,6 +169,12 @@ function generateWaveAnimation() {
 
 // 删除音频
 async function deleteAudio(id) {
+    // 验证id是否有效
+    if (!id || id === 'undefined' || id === 'null') {
+        alert('无效的音频ID');
+        return;
+    }
+
     if (!confirm('确定要删除这个音频文件吗？')) {
         return;
     }
@@ -405,6 +411,12 @@ function formatDate(dateStr) {
 // 更新音频内容
 async function updateAudioContent(audioId, content) {
     try {
+        // 验证audioId是否有效
+        if (!audioId || audioId === 'undefined' || audioId === 'null') {
+            showMessage('无效的音频ID', 'error');
+            return;
+        }
+
         showMessage('正在保存文本...', 'info');
 
         const response = await fetch(`${API_BASE_URL}/audio/${audioId}/content`, {

@@ -38,7 +38,7 @@ func InitRouter() *gin.Engine {
 				audio.GET("/list", controller.GetUserAudios)
 				audio.DELETE("/:id", controller.DeleteAudio)
 				audio.PUT("/:id/content", controller.UpdateAudioContent)
-				audio.GET("/stream/:id", controller.StreamAudio)
+				// audio.GET("/stream/:id", controller.StreamAudio)
 			}
 		}
 	}

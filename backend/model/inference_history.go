@@ -87,7 +87,7 @@ func (h *InferenceHistory) GetHistoryDetailByHID(db *gorm.DB, hid string) (*Hist
 		Select("h.*, u.username, a.name as audio_name, m.model_path as model_name").
 		Joins("LEFT JOIN users u ON h.uid = u.uid").
 		Joins("LEFT JOIN user_audio_models m ON h.mid = m.mid").
-		Joins("LEFT JOIN audios a ON m.aid = a.aid").
+		Joins("LEFT JOIN audios a ON m.a_id = a.a_id").
 		Where("h.hid = ? AND h.deleted_at IS NULL", hid).
 		First(&detail).Error
 	return &detail, err
@@ -100,7 +100,7 @@ func (h *InferenceHistory) GetHistoryDetailsByUID(db *gorm.DB, uid string) ([]Hi
 		Select("h.*, u.username, a.name as audio_name, m.model_path as model_name").
 		Joins("LEFT JOIN users u ON h.uid = u.uid").
 		Joins("LEFT JOIN user_audio_models m ON h.mid = m.mid").
-		Joins("LEFT JOIN audios a ON m.aid = a.aid").
+		Joins("LEFT JOIN audios a ON m.a_id = a.a_id").
 		Where("h.uid = ? AND h.deleted_at IS NULL", uid).
 		Order("h.created_at DESC").
 		Find(&details).Error
