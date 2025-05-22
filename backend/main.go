@@ -2,14 +2,19 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	"voice_clone_fbm/backend/config"
 	"voice_clone_fbm/backend/model"
 	"voice_clone_fbm/backend/router"
+	"voice_clone_fbm/backend/utils"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
+	// 初始化日志
+	utils.InitLogger()
+
 	// 初始化配置
 	if err := config.Init(); err != nil {
 		log.Fatalf("配置初始化失败: %v", err)
@@ -25,7 +30,7 @@ func main() {
 
 	// 启动服务器
 	addr := fmt.Sprintf("%s:%d", config.GlobalConfig.Server.Host, config.GlobalConfig.Server.Port)
-	log.Printf("服务器启动在 %s", addr)
+	log.Infof("服务器启动在 %s", addr)
 	if err := r.Run(addr); err != nil {
 		log.Fatalf("服务器启动失败: %v", err)
 	}
