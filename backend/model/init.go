@@ -80,6 +80,28 @@ func autoMigrate() error {
 		}
 	}
 
+	// 语音模型表迁移
+	if !contains(tables, "models") {
+		if err := DB.Migrator().CreateTable(&VoiceModel{}); err != nil {
+			return err
+		}
+	} else {
+		if err := DB.AutoMigrate(&VoiceModel{}); err != nil {
+			return err
+		}
+	}
+
+	// 用户音频模型关系表迁移
+	if !contains(tables, "user_audio_models") {
+		if err := DB.Migrator().CreateTable(&UserAudioModel{}); err != nil {
+			return err
+		}
+	} else {
+		if err := DB.AutoMigrate(&UserAudioModel{}); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

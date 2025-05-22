@@ -40,6 +40,15 @@ func InitRouter() *gin.Engine {
 				audio.PUT("/:id/content", controller.UpdateAudioContent)
 				// audio.GET("/stream/:id", controller.StreamAudio)
 			}
+
+			// 模型训练相关
+			model := authenticated.Group("/model")
+			{
+				// 开始训练模型
+				model.POST("/train", controller.StartTraining)
+				// 获取用户的所有模型
+				model.GET("/list", controller.GetUserModels)
+			}
 		}
 	}
 

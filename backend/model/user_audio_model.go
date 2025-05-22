@@ -9,10 +9,7 @@ type UserAudioModel struct {
 	MID       string `gorm:"type:char(32);index;not null" json:"mid"` // 模型ID
 	UID       string `gorm:"type:char(32);index;not null" json:"uid"` // 用户ID
 	AID       string `gorm:"type:char(32);index;not null" json:"aid"` // 音频ID
-	ModelPath string `gorm:"type:varchar(255)" json:"model_path"`     // 模型文件路径
-	Status    int8   `gorm:"type:tinyint;default:1" json:"status"`    // 状态：1待训练 2已完成 3失败
-	Params    string `gorm:"type:text" json:"params"`                 // 训练参数(JSON)
-	ErrorMsg  string `gorm:"type:varchar(512)" json:"error_msg"`      // 错误信息
+	ModelName string `gorm:"type:varchar(255);not null" json:"model_name"` // 模型名称
 	gorm.Model
 }
 
