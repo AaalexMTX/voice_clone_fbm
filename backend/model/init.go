@@ -47,19 +47,18 @@ func autoMigrate() error {
 		return err
 	}
 
-	// 如果表不存在，创建表
+	// 用户表迁移
 	if !contains(tables, "users") {
 		if err := DB.Migrator().CreateTable(&User{}); err != nil {
 			return err
 		}
 	} else {
-		// 如果表存在，自动迁移（更新表结构）
 		if err := DB.AutoMigrate(&User{}); err != nil {
 			return err
 		}
 	}
 
-	// 删除旧的音频表并重新创建
+	// 音频表迁移
 	if contains(tables, "audios") {
 		if err := DB.Migrator().DropTable(&Audio{}); err != nil {
 			return err
@@ -67,6 +66,17 @@ func autoMigrate() error {
 	}
 	if err := DB.Migrator().CreateTable(&Audio{}); err != nil {
 		return err
+	}
+
+	// 用户素材表迁移
+	if !contains(tables, "user_audios") {
+		if err := DB.Migrator().CreateTable(&UserAudio{}); err != nil {
+			return err
+		}
+	} else {
+		if err := DB.AutoMigrate(&UserAudio{}); err != nil {
+			return err
+		}
 	}
 
 	return nil

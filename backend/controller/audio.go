@@ -58,16 +58,26 @@ func UploadAudio(c *gin.Context) {
 
 	// 创建音频记录
 	audio := &model.Audio{
-		Username: username,
 		Name:     file.Filename,
 		FilePath: filePath,
 		FileType: strings.TrimPrefix(ext, "."),
-		Status:   "pending",
+		Status:   model.AudioProcessPending,
 	}
-
-	if err := model.CreateAudio(audio); err != nil {
+	if err := audio.Create(model.DB); err != nil {
 		log.Printf("创建音频记录失败: %v", err)
 		c.JSON(500, gin.H{"error": "创建音频记录失败"})
+		return
+	}
+
+	// 创建用户音频关联
+	userAudio := &model.UserAudio{
+		UID:    username,
+		AID:    audio.AID,
+		Status: model.AudioTrainPending,
+	}
+	if err := userAudio.Create(model.DB); err != nil {
+		log.Printf("创建用户音频关联失败: %v", err)
+		c.JSON(500, gin.H{"error": "创建用户音频关联失败"})
 		return
 	}
 
@@ -120,15 +130,24 @@ func DeleteAudio(c *gin.Context) {
 	audioID := c.Param("id")
 	log.Printf("用户 %s 请求删除音频 ID: %s", username, audioID)
 
+	// 获取音频记录
 	var audio model.Audio
-	if err := model.DB.Where("id = ? AND username = ?", audioID, username).First(&audio).Error; err != nil {
-		log.Printf("音频不存在或无权访问: %v", err)
+	if err := audio.GetByAID(audioID); err != nil {
+		log.Printf("音频不存在: %v", err)
 		c.JSON(404, gin.H{"error": "音频不存在"})
 		return
 	}
 
+	// 检查用户权限
+	var userAudio model.UserAudio
+	if err := model.DB.Where("uid = ? AND aid = ?", username, audioID).First(&userAudio).Error; err != nil {
+		log.Printf("用户无权访问该音频: %v", err)
+		c.JSON(403, gin.H{"error": "无权访问该音频"})
+		return
+	}
+
 	// 删除音频文件和记录
-	if err := model.DeleteAudio(&audio); err != nil {
+	if err := audio.Delete(); err != nil {
 		log.Printf("删除音频失败: %v", err)
 		c.JSON(500, gin.H{"error": fmt.Sprintf("删除音频失败: %v", err)})
 		return
