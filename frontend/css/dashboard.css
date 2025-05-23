@@ -891,7 +891,7 @@ button:hover {
     width: 100%;
 }
 
-.play-button {
+.play-btn {
     width: 40px;
     height: 40px;
     border-radius: 50%;
@@ -905,9 +905,17 @@ button:hover {
     transition: all 0.3s ease;
 }
 
-.play-button:hover {
+.play-btn:hover {
     background: #2980b9;
     transform: scale(1.05);
+}
+
+.play-btn[data-state="paused"] span:after {
+    content: "播放";
+}
+
+.play-btn[data-state="playing"] span:after {
+    content: "暂停";
 }
 
 /* 中间文本校对列 */
@@ -2216,4 +2224,35 @@ audio {
     font-weight: 600;
     border-bottom: 1px solid #e0e0e0;
     padding-bottom: 10px;
+}
+
+.history-delete-btn {
+    width: 36px;
+    height: 36px;
+    background-color: #f8f9fa;
+    color: #e74c3c;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.history-delete-btn:hover {
+    background-color: #ffebee;
+    color: #c0392b;
+    border-color: #f5b7b1;
+}
+
+.delete-icon {
+    font-style: normal;
+}
+
+/* 添加淡出动画 */
+.fade-out {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
 } 

@@ -6,14 +6,14 @@ import (
 
 // InferenceHistory 推理历史记录表
 type InferenceHistory struct {
-	HID        string  `gorm:"type:char(32);index;not null" json:"hid"` // 历史记录ID
-	UID        string  `gorm:"type:char(32);index;not null" json:"uid"` // 用户ID
-	MID        string  `gorm:"type:char(32);index;not null" json:"mid"` // 模型ID
-	InputText  string  `gorm:"type:text;not null" json:"input_text"`    // 输入文本
-	OutputPath string  `gorm:"type:varchar(255)" json:"output_path"`    // 输出音频路径
-	AudioName  string  `gorm:"type:varchar(255)" json:"audio_name"`     // 音频名称
-	Status     int8    `gorm:"type:tinyint;default:1" json:"status"`    // 状态：1处理中 2已完成 3失败
-	Duration   float32 `gorm:"type:float" json:"duration"`              // 音频时长(秒)
+	HID        string  `gorm:"column:hid;type:char(32);index;not null" json:"hid"`      // 历史记录ID
+	UID        string  `gorm:"column:uid;type:char(32);index;not null" json:"uid"`      // 用户ID
+	MID        string  `gorm:"column:mid;type:char(32);index;not null" json:"mid"`      // 模型ID
+	InputText  string  `gorm:"column:input_text;type:text;not null" json:"input_text"`  // 输入文本
+	OutputPath string  `gorm:"column:output_path;type:varchar(255)" json:"output_path"` // 输出音频路径
+	AudioName  string  `gorm:"column:audio_name;type:varchar(255)" json:"audio_name"`   // 音频名称
+	Status     int8    `gorm:"column:status;type:tinyint;default:1" json:"status"`      // 状态：1处理中 2已完成 3失败
+	Duration   float32 `gorm:"column:duration;type:float" json:"duration"`              // 音频时长(秒)
 	gorm.Model         // 包含ID、创建时间、更新时间、删除时间
 }
 
@@ -103,4 +103,18 @@ func (h *InferenceHistory) GetHistoryDetailsByUID(db *gorm.DB, uid string) ([]Hi
 		Order("h.created_at DESC").
 		Find(&details).Error
 	return details, err
+}
+
+// CheckHistoryExists 检查历史记录是否存在且属于指定用户
+func (h *InferenceHistory) CheckHistoryExists(db *gorm.DB, hid string, uid string) (bool, error) {
+	var count int64
+	err := db.Model(&InferenceHistory{}).
+		Where("hid = ? AND uid = ? AND deleted_at IS NULL", hid, uid).
+		Count(&count).Error
+	return count > 0, err
+}
+
+// DeleteByHID 根据历史记录ID删除记录
+func (h *InferenceHistory) DeleteByHID(db *gorm.DB, hid string) error {
+	return db.Where("hid = ?", hid).Delete(&InferenceHistory{}).Error
 }

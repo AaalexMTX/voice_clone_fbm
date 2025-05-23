@@ -42,6 +42,8 @@ func InitRouter() *gin.Engine {
 				audio.DELETE("/:id", controller.DeleteAudio)
 				audio.PUT("/:id/content", controller.UpdateAudioContent)
 				audio.GET("/stream/:id", controller.StreamAudio)
+				// 特殊接口：根据文件名查找音频
+				audio.GET("/user/:name", controller.GetAudioByName)
 			}
 
 			// 模型训练相关
@@ -62,6 +64,8 @@ func InitRouter() *gin.Engine {
 				inference.GET("/list", controller.GetUserInferenceHistories)
 				// 获取推理历史记录详情
 				inference.GET("/detail/:hid", controller.GetInferenceHistoryDetail)
+				// 删除推理历史记录
+				inference.DELETE("/:hid", controller.DeleteInferenceHistory)
 			}
 		}
 	}

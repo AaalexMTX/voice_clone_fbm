@@ -137,9 +137,28 @@ func autoMigrate() error {
 		fmt.Println("inference_histories表创建成功")
 	} else {
 		fmt.Println("更新inference_histories表结构")
-		if err := DB.AutoMigrate(&InferenceHistory{}); err != nil {
-			fmt.Printf("更新inference_histories表结构失败: %v\n", err)
-			return err
+
+		// 检查表结构
+		if !DB.Migrator().HasColumn(&InferenceHistory{}, "hid") {
+			fmt.Println("表结构不匹配，尝试重建表")
+			// 如果表结构不匹配，尝试删除并重建表
+			if err := DB.Migrator().DropTable("inference_histories"); err != nil {
+				fmt.Printf("删除inference_histories表失败: %v\n", err)
+				return err
+			}
+
+			// 重新创建表
+			if err := DB.Migrator().CreateTable(&InferenceHistory{}); err != nil {
+				fmt.Printf("重新创建inference_histories表失败: %v\n", err)
+				return err
+			}
+			fmt.Println("inference_histories表重建成功")
+		} else {
+			// 正常更新表结构
+			if err := DB.AutoMigrate(&InferenceHistory{}); err != nil {
+				fmt.Printf("更新inference_histories表结构失败: %v\n", err)
+				return err
+			}
 		}
 	}
 

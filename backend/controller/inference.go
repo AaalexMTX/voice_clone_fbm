@@ -156,3 +156,47 @@ func GetInferenceHistoryDetail(c *gin.Context) {
 		"data": detail,
 	})
 }
+
+// DeleteInferenceHistory 删除推理历史记录
+func DeleteInferenceHistory(c *gin.Context) {
+	// 获取当前用户ID
+	uid, exists := c.Get("uid")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未授权"})
+		return
+	}
+
+	// 获取历史记录ID
+	hid := c.Param("hid")
+	if hid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+		return
+	}
+
+	// 删除历史记录
+	var history model.InferenceHistory
+	db := model.GetDB()
+
+	// 先检查历史记录是否存在且属于当前用户
+	exists, err := history.CheckHistoryExists(db, hid, uid.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询历史记录失败"})
+		return
+	}
+
+	if !exists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "历史记录不存在或无权限删除"})
+		return
+	}
+
+	// 执行删除
+	if err := history.DeleteByHID(db, hid); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"msg":  "删除成功",
+	})
+}

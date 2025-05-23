@@ -106,14 +106,25 @@
                                 <div class="audio-title">
                                     <input type="text" id="synthesis-audio-name" placeholder="音频的名称" value="合成音频">
                                 </div>
-                                <div class="audio-waveform">
-                                    <div class="wave-visualization"></div>
+                                <div class="audio-player-container">
+                                    <div class="audio-controls">
+                                        <button class="play-btn" id="play-synthesis" data-state="paused">
+                                            <i class="play-icon">▶</i>
+                                        </button>
+                                        <div class="audio-progress">
+                                            <div class="progress-bar">
+                                                <div class="progress-current" id="synthesis-progress"></div>
+                                            </div>
+                                            <div class="time-display">
+                                                <span class="current-time" id="synthesis-current-time">0:00</span>
+                                                <span class="total-time" id="synthesis-total-time">0:00</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="waveform-container" id="synthesis-waveform"></div>
+                                    <audio id="synthesis-audio" preload="metadata" crossorigin="anonymous"></audio>
                                 </div>
-                                <audio id="synthesis-audio" controls></audio>
                                 <div class="result-actions">
-                                    <button class="action-btn play-btn" id="play-synthesis">
-                                        <span>播放</span>
-                                    </button>
                                     <button class="action-btn download-btn" id="download-synthesis">
                                         <span>下载</span>
                                     </button>
