@@ -11,3 +11,6 @@ database:
   charset: "utf8mb4"
   parse_time: true
   loc: "Local" 
+
+model:
+  api_base_url: "http://localhost:7860/api" 

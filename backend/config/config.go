@@ -22,6 +22,10 @@ type Config struct {
 		ParseTime bool   `yaml:"parse_time"`
 		Loc       string `yaml:"loc"`
 	} `yaml:"database"`
+
+	Model struct {
+		APIBaseURL string `yaml:"api_base_url"`
+	} `yaml:"model"`
 }
 
 var GlobalConfig Config
