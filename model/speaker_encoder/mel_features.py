@@ -1,35 +1,56 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+梅尔频谱特征提取
+"""
+
 import numpy as np
 import librosa
 
-def extract_mel_features(wav, sr=16000, n_fft=1024, hop_length=256, n_mels=80):
+def extract_mel_features(wav, sr=16000, n_fft=512, hop_length=160, win_length=400, n_mels=24,
+                         fmin=0, fmax=8000, normalize=True):
     """
     从音频波形中提取梅尔频谱特征
     
     参数:
-        wav: 输入音频波形, numpy数组, 归一化到[-1, 1]
-        sr: 采样率, 默认16kHz
+        wav: 音频波形
+        sr: 采样率
         n_fft: FFT窗口大小
         hop_length: 帧移
-        n_mels: 梅尔滤波器组数量
+        win_length: 窗口长度
+        n_mels: 梅尔滤波器组数量（默认为24，与预训练X-Vector模型匹配）
+        fmin: 最低频率
+        fmax: 最高频率
+        normalize: 是否规范化特征
         
     返回:
-        梅尔频谱特征，shape为[时间帧数, n_mels]
+        梅尔频谱特征 [seq_len, n_mels]
     """
-    # 计算短时傅里叶变换
-    stft = librosa.stft(wav, n_fft=n_fft, hop_length=hop_length, win_length=n_fft)
+    # 确保音频是单声道
+    if len(wav.shape) > 1:
+        wav = wav.mean(axis=1)
     
-    # 计算功率谱
-    magnitude = np.abs(stft)
-    power_spec = magnitude ** 2
+    # 提取梅尔频谱
+    mel_spectrogram = librosa.feature.melspectrogram(
+        y=wav,
+        sr=sr,
+        n_fft=n_fft,
+        hop_length=hop_length,
+        win_length=win_length,
+        n_mels=n_mels,
+        fmin=fmin,
+        fmax=fmax
+    )
     
-    # 转换为梅尔频谱
-    mel_basis = librosa.filters.mel(sr=sr, n_fft=n_fft, n_mels=n_mels)
-    mel_spec = np.dot(mel_basis, power_spec)
+    # 转换为对数刻度
+    log_mel_spectrogram = librosa.power_to_db(mel_spectrogram, ref=np.max)
     
-    # 转换为对数尺度
-    log_mel_spec = librosa.power_to_db(mel_spec, ref=np.max)
+    # 规范化
+    if normalize:
+        log_mel_spectrogram = (log_mel_spectrogram - log_mel_spectrogram.mean()) / (log_mel_spectrogram.std() + 1e-5)
     
-    # 归一化
-    normalized_mel = (log_mel_spec - log_mel_spec.mean()) / (log_mel_spec.std() + 1e-8)
+    # 转置为 [seq_len, n_mels]
+    log_mel_spectrogram = log_mel_spectrogram.T
     
-    return normalized_mel.T  # 转置为[时间, 特征]形式 
+    return log_mel_spectrogram 

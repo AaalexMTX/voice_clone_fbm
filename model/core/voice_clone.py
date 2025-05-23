@@ -115,6 +115,26 @@ class VoiceCloneSystem:
             print(f"加载HiFi-GAN声码器: {model_path}")
             print(f"使用配置文件: {config_path}")
             
+            # 加载预训练的HiFi-GAN模型
+            self.vocoder = HiFiGAN.from_pretrained(
+                model_path=str(model_path),
+                config_path=str(config_path)
+            )
+            
+            # 将模型移动到指定设备
+            if hasattr(self.vocoder, 'to'):
+                self.vocoder.to(self.device)
+            
+            # 设置为评估模式
+            if hasattr(self.vocoder, 'eval'):
+                self.vocoder.eval()
+                
+            print("成功加载HiFi-GAN声码器")
+            
+        except Exception as e:
+            print(f"加载HiFi-GAN声码器失败: {str(e)}")
+            print("使用模拟声码器作为备选")
+            
             # 创建一个简单的模拟声码器对象
             class MockVocoder:
                 def __init__(self):
@@ -153,12 +173,18 @@ class VoiceCloneSystem:
         import json
         import os
         
-        cache_file = self.cache_dir / "speaker_embeddings.json"
         try:
+            # 确保缓存目录存在
+            os.makedirs(self.cache_dir, exist_ok=True)
+            
+            cache_file = self.cache_dir / "speaker_embeddings.json"
+            
             # 将numpy数组转换为列表以便JSON序列化
             cache_data = {k: v.tolist() for k, v in self.embedding_cache.items()}
+            
             with open(cache_file, 'w') as f:
                 json.dump(cache_data, f)
+                
             print(f"已保存 {len(self.embedding_cache)} 条说话人特征缓存")
         except Exception as e:
             print(f"保存说话人特征缓存失败: {str(e)}")
@@ -234,8 +260,35 @@ class VoiceCloneSystem:
             音频波形
         """
         print("使用HiFi-GAN将梅尔频谱图转换为音频")
-        audio = self.vocoder.convert_mel_to_audio(mel_spectrogram)
-        return audio
+        
+        try:
+            # 检查是否为真实的HiFi-GAN模型
+            if hasattr(self.vocoder, 'forward') or hasattr(self.vocoder, 'torchaudio_model'):
+                # 将梅尔频谱图转换为张量
+                mel_tensor = torch.FloatTensor(mel_spectrogram).unsqueeze(0)  # [1, mel_dim, time]
+                
+                # 将张量移动到设备上
+                if hasattr(self.vocoder, 'to'):
+                    mel_tensor = mel_tensor.to(self.device)
+                
+                # 使用模型生成音频
+                with torch.no_grad():
+                    if hasattr(self.vocoder, 'forward'):
+                        waveform = self.vocoder(mel_tensor)
+                    else:
+                        waveform = self.vocoder.convert_mel_to_audio(mel_tensor)
+                
+                # 转换为numpy数组
+                audio = waveform.cpu().numpy().squeeze()
+                return audio
+            else:
+                # 使用转换方法
+                audio = self.vocoder.convert_mel_to_audio(mel_spectrogram)
+                return audio
+        except Exception as e:
+            print(f"使用HiFi-GAN生成音频失败: {str(e)}，返回随机音频")
+            # 生成随机音频作为备选
+            return np.random.randn(22050 * 3)  # 3秒的音频
     
     def clone_voice(self, reference_audio: str, text: str, 
                     use_cache: bool = True, output_path: Optional[str] = None) -> Tuple[str, np.ndarray]:

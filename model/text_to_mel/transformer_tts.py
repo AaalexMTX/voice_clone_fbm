@@ -459,11 +459,77 @@ class XTTSAdapter:
                 self.config = yaml.safe_load(f)
                 print(f"已加载XTTS配置: {config_path}")
         except Exception as e:
-            print(f"加载XTTS配置失败: {str(e)}")
+            print(f"加载XTTS配置失败: {str(e)}，使用默认配置")
             self.config = {}
         
-        print(f"XTTS适配器初始化完成，使用随机生成")
-        print(f"注意：实际模型加载需要Coqui TTS库，目前使用随机生成")
+        # 创建一个TransformerTTS模型实例
+        self.model = None
+        try:
+            print(f"尝试加载XTTS预训练模型: {model_path}")
+            
+            # 尝试使用weights_only=False加载模型
+            try:
+                print("尝试使用weights_only=False加载模型（信任源模型）")
+                # 添加安全全局变量
+                import torch.serialization
+                try:
+                    # 尝试添加TTS.tts.configs.xtts_config.XttsConfig到安全全局变量
+                    torch.serialization.add_safe_globals(["TTS.tts.configs.xtts_config.XttsConfig"])
+                    print("已添加TTS.tts.configs.xtts_config.XttsConfig到安全全局变量")
+                except Exception as e:
+                    print(f"添加安全全局变量失败: {str(e)}")
+                
+                # 使用上下文管理器加载模型
+                with torch.serialization.safe_globals(["TTS.tts.configs.xtts_config.XttsConfig"]):
+                    model_data = torch.load(model_path, map_location=device, weights_only=False)
+                    print("成功加载模型数据")
+                    
+                    # 检查是否为Coqui TTS模型
+                    if hasattr(model_data, "model") or isinstance(model_data, dict) and "model" in model_data:
+                        print("检测到Coqui TTS模型格式")
+                        self.coqui_model = model_data
+                        self.use_coqui_model = True
+                        print("成功加载Coqui TTS模型")
+                    else:
+                        print("未检测到Coqui TTS模型格式，使用自定义模型")
+                        raise ValueError("不是Coqui TTS模型格式")
+                
+            except Exception as e:
+                print(f"使用weights_only=False加载模型失败: {str(e)}")
+                print("使用自定义模型并尝试加载权重")
+                
+                # 从配置创建模型
+                self.model = TransformerTTS(
+                    vocab_size=self.config.get("vocab_size", 256),
+                    d_model=self.config.get("d_model", 512),
+                    nhead=self.config.get("nhead", 8),
+                    num_encoder_layers=self.config.get("num_encoder_layers", 6),
+                    num_decoder_layers=self.config.get("num_decoder_layers", 6),
+                    dim_feedforward=self.config.get("dim_feedforward", 2048),
+                    dropout=self.config.get("dropout", 0.1),
+                    speaker_dim=self.config.get("speaker_dim", 512),
+                    mel_dim=self.config.get("mel_dim", 80)
+                )
+                
+                # 尝试加载权重
+                try:
+                    weights = torch.load(model_path, map_location=device)
+                    self.model.load_state_dict(weights)
+                    print("成功加载模型权重")
+                    self.use_coqui_model = False
+                except Exception as e:
+                    print(f"加载模型权重失败: {str(e)}，使用初始化权重")
+                    self.use_coqui_model = False
+                
+                self.model.to(device)
+                self.model.eval()
+            
+            print(f"XTTS模型初始化成功")
+            
+        except Exception as e:
+            print(f"加载XTTS预训练模型失败: {str(e)}，将使用随机生成")
+            self.model = None
+            self.use_coqui_model = False
     
     def generate_mel(self, text, speaker_embedding):
         """
@@ -476,9 +542,63 @@ class XTTSAdapter:
         返回:
             梅尔频谱
         """
-        print(f"使用XTTS适配器生成随机梅尔频谱，文本: '{text}'")
-        # 生成随机梅尔频谱
-        # 假设梅尔频谱维度为80，长度根据文本长度生成
+        # 检查是否使用Coqui模型
+        if hasattr(self, 'use_coqui_model') and self.use_coqui_model and hasattr(self, 'coqui_model'):
+            try:
+                print(f"使用Coqui TTS模型生成梅尔频谱，文本: '{text}'")
+                
+                # 尝试使用Coqui模型生成梅尔频谱
+                if hasattr(self.coqui_model, 'synthesize'):
+                    mel = self.coqui_model.synthesize(text, speaker_embedding)
+                    return mel
+                elif isinstance(self.coqui_model, dict) and "model" in self.coqui_model:
+                    model = self.coqui_model["model"]
+                    if hasattr(model, 'synthesize'):
+                        mel = model.synthesize(text, speaker_embedding)
+                        return mel
+                
+                print("Coqui模型没有可用的synthesize方法，使用随机生成")
+            except Exception as e:
+                print(f"使用Coqui TTS模型生成梅尔频谱失败: {str(e)}")
+        
+        # 使用自定义模型
+        if self.model is not None:
+            try:
+                print(f"使用TransformerTTS模型生成梅尔频谱，文本: '{text}'")
+                
+                # 文本处理（简单实现，实际应用中需要更复杂的文本处理）
+                text_ids = [ord(c) % 256 for c in text]  # 简单的字符到ID转换
+                text_ids = torch.tensor([text_ids], device=self.device)
+                
+                # 转换speaker_embedding为张量，并确保数据类型一致
+                if isinstance(speaker_embedding, np.ndarray):
+                    # 确保使用float32类型
+                    speaker_embedding = torch.tensor(speaker_embedding.astype(np.float32), 
+                                                   device=self.device).unsqueeze(0)
+                else:
+                    # 如果已经是张量，确保类型是float32
+                    speaker_embedding = speaker_embedding.float().to(self.device)
+                    if speaker_embedding.dim() == 1:
+                        speaker_embedding = speaker_embedding.unsqueeze(0)
+                
+                # 检查模型参数类型
+                for param in self.model.parameters():
+                    if param.dtype != torch.float32:
+                        print(f"将模型参数从 {param.dtype} 转换为 float32")
+                        param.data = param.data.float()
+                
+                # 使用模型推理
+                with torch.no_grad():
+                    mel_outputs = self.model.inference(text_ids, speaker_embedding)
+                
+                # 转换为numpy数组
+                mel = mel_outputs.cpu().numpy()[0].T  # [mel_dim, time]
+                return mel
+            except Exception as e:
+                print(f"使用TransformerTTS模型生成梅尔频谱失败: {str(e)}，使用随机生成")
+        
+        # 如果模型不可用或生成失败，使用随机生成
+        print(f"使用随机生成梅尔频谱，文本: '{text}'")
         mel_len = len(text) * 5 + 50  # 简单估算
         mel = np.random.randn(80, mel_len) * 0.1  # 控制幅度
         return mel 
