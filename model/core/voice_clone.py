@@ -8,7 +8,9 @@ import logging
 from pathlib import Path
 
 from ..speaker_encoder.speaker_encoder import SpeakerEncoder
+from ..speaker_encoder.xvector import XVectorEncoder
 from ..speaker_encoder.audio_processing import preprocess_wav
+from ..text_to_mel.transformer_tts import TransformerTTS
 from ..vocoder.hifigan import HiFiGAN
 from ..vocoder.griffinlim import GriffinLim
 from .model import VoiceCloneModel
@@ -32,7 +34,7 @@ class VoiceCloneSystem:
     3. 将梅尔频谱转换为音频波形
     """
     
-    def __init__(self, model_dir="models", device=None, vocoder_type="hifigan"):
+    def __init__(self, model_dir="model/data/checkpoints", device=None, vocoder_type="hifigan", encoder_type="xvector", tts_type="transformer"):
         """
         初始化语音克隆系统
         
@@ -40,17 +42,26 @@ class VoiceCloneSystem:
             model_dir: 模型目录
             device: 设备 (None为自动选择)
             vocoder_type: 声码器类型，当前默认: "hifigan"
+            encoder_type: 说话人编码器类型: "xvector"或"speaker_encoder"
+            tts_type: 文本到梅尔频谱模型类型: "transformer"或"default"
         """
         # 设置设备
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"使用设备: {self.device}")
         
+        # 设置编码器类型和TTS类型
+        self.encoder_type = encoder_type
+        self.tts_type = tts_type
+        
         # 模型路径
         self.model_dir = Path(model_dir)
-        self.encoder_path = self.model_dir / "speaker_encoder.pt"
+        self.speaker_encoder_path = self.model_dir / "speaker_encoder.pt"
+        self.xvector_encoder_path = self.model_dir / "xvector_encoder.pt"
         self.tts_model_path = self.model_dir / "tts_model.pt"
-        self.vocoder_path = self.model_dir / "hifigan_vocoder.pt"
-        self.vocoder_config = self.model_dir / "hifigan_config.json"
+        self.transformer_tts_path = self.model_dir / "transformer_tts.pt"
+        # 修改声码器路径，指向model/vocoder/models目录
+        self.vocoder_path = Path("model/vocoder/models/hifigan_vocoder.pt")
+        self.vocoder_config = Path("model/vocoder/models/hifigan_config.json")
         
         # 初始化模型
         self._init_models(vocoder_type)
@@ -58,21 +69,60 @@ class VoiceCloneSystem:
     def _init_models(self, vocoder_type="hifigan"):
         """初始化所有模型"""
         # 初始化说话人编码器
-        self.speaker_encoder = SpeakerEncoder().to(self.device)
-        if os.path.exists(self.encoder_path):
-            self.speaker_encoder.load_state_dict(torch.load(self.encoder_path, map_location=self.device))
-            logger.info(f"加载说话人编码器: {self.encoder_path}")
+        if self.encoder_type == "xvector":
+            # 使用X-Vector作为说话人编码器
+            self.speaker_encoder = XVectorEncoder(mel_n_channels=80, embedding_dim=512).to(self.device)
+            encoder_path = self.xvector_encoder_path
         else:
-            logger.warning(f"找不到说话人编码器模型: {self.encoder_path}，使用未训练的模型")
+            # 使用原始SpeakerEncoder
+            self.speaker_encoder = SpeakerEncoder().to(self.device)
+            encoder_path = self.speaker_encoder_path
+        
+        if os.path.exists(encoder_path):
+            logger.info(f"加载说话人编码器: {encoder_path}")
+            try:
+                # 对于PyTorch 2.6+版本，处理weights_only参数
+                if torch.__version__ >= "2.6.0":
+                    self.speaker_encoder.load(str(encoder_path))
+                else:
+                    state_dict = torch.load(encoder_path, map_location=self.device)
+                    self.speaker_encoder.load_state_dict(state_dict)
+                logger.info(f"成功加载说话人编码器: {encoder_path}")
+            except Exception as e:
+                logger.error(f"加载说话人编码器时出错: {str(e)}")
+                logger.warning("使用未训练的模型")
+        else:
+            logger.warning(f"找不到说话人编码器模型: {encoder_path}，使用未训练的模型")
         self.speaker_encoder.eval()
         
         # 初始化TTS模型
-        self.tts_model = VoiceCloneModel().to(self.device)
-        if os.path.exists(self.tts_model_path):
-            self.tts_model.load_state_dict(torch.load(self.tts_model_path, map_location=self.device))
-            logger.info(f"加载TTS模型: {self.tts_model_path}")
+        if self.tts_type == "transformer":
+            # 使用基于Transformer的TTS模型
+            self.tts_model = TransformerTTS(
+                vocab_size=256,
+                d_model=512,
+                nhead=8,
+                num_encoder_layers=6,
+                num_decoder_layers=6,
+                speaker_dim=512,
+                mel_dim=80
+            ).to(self.device)
+            tts_path = self.transformer_tts_path
         else:
-            logger.warning(f"找不到TTS模型: {self.tts_model_path}，使用未训练的模型")
+            # 使用默认的TTS模型
+            self.tts_model = VoiceCloneModel().to(self.device)
+            tts_path = self.tts_model_path
+            
+        if os.path.exists(tts_path):
+            logger.info(f"加载TTS模型: {tts_path}")
+            try:
+                self.tts_model.load_state_dict(torch.load(tts_path, map_location=self.device))
+                logger.info(f"成功加载TTS模型: {tts_path}")
+            except Exception as e:
+                logger.error(f"加载TTS模型时出错: {str(e)}")
+                logger.warning("使用未训练的模型")
+        else:
+            logger.warning(f"找不到TTS模型: {tts_path}，使用未训练的模型")
         self.tts_model.eval()
         
         # 初始化声码器
@@ -110,32 +160,27 @@ class VoiceCloneSystem:
         
         参数:
             audio_path: 音频文件路径
-        
+            
         返回:
-            说话人嵌入向量 (numpy.ndarray)
+            说话人嵌入向量
         """
         logger.info(f"从音频提取说话人嵌入: {audio_path}")
-        # 预处理音频
-        wav = preprocess_wav(audio_path)
         
-        # 提取说话人嵌入
-        with torch.no_grad():
-            embedding = self.speaker_encoder.embed_utterance(wav)
-        
-        return embedding
-    
-    def load_speaker_embedding(self, embedding_path):
-        """
-        加载保存的说话人嵌入
-        
-        参数:
-            embedding_path: 嵌入文件路径 (.npy)
-        
-        返回:
-            说话人嵌入向量 (numpy.ndarray)
-        """
-        logger.info(f"加载说话人嵌入: {embedding_path}")
-        return np.load(embedding_path)
+        try:
+            # 预处理音频
+            wav = preprocess_wav(audio_path)
+            
+            # 提取嵌入
+            with torch.no_grad():
+                embedding = self.speaker_encoder.embed_utterance(wav)
+            
+            logger.info(f"成功提取说话人嵌入，维度: {embedding.shape}")
+            return embedding
+        except Exception as e:
+            logger.error(f"提取说话人嵌入时出错: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
     
     def synthesize(self, text, speaker_embedding, output_path):
         """
@@ -158,11 +203,16 @@ class VoiceCloneSystem:
                 # 将文本转换为序列（简化实现，实际中需要更复杂的文本处理）
                 # TODO: 实现文本到ID的转换
                 logger.info("生成文本序列")
-                text_sequence = torch.randint(0, 100, (1, len(text))).to(self.device)
+                text_sequence = torch.tensor([[ord(c) % 256 for c in text]], dtype=torch.long).to(self.device)
                 
                 # 生成梅尔频谱
                 logger.info("使用TTS模型生成梅尔频谱")
-                mel_outputs = self.tts_model(text_sequence, speaker_embedding)
+                if self.tts_type == "transformer":
+                    # 使用Transformer TTS模型
+                    mel_outputs = self.tts_model.inference(text_sequence, speaker_embedding)
+                else:
+                    # 使用默认TTS模型
+                    mel_outputs = self.tts_model(text_sequence, speaker_embedding)
                 
                 # 使用声码器生成波形
                 logger.info("使用声码器生成波形")

@@ -11,8 +11,8 @@
 """
 
 # 导入主要功能模块
-from .speaker_encoder import SpeakerEncoder, preprocess_wav, extract_mel_features
-from .text_to_mel import TextEncoder, MelDecoder 
+from .speaker_encoder import SpeakerEncoder, XVectorEncoder, preprocess_wav, extract_mel_features
+from .text_to_mel import TextEncoder, MelDecoder, TransformerTTS, TransformerTTSLoss
 from .vocoder import HiFiGAN, Vocoder, VocoderType
 
 # 导入系统接口
@@ -26,10 +26,10 @@ from .config import load_config, get_config, save_config
 __version__ = "0.1.0"
 __all__ = [
     # 说话人编码器
-    'SpeakerEncoder', 'preprocess_wav', 'extract_mel_features',
+    'SpeakerEncoder', 'XVectorEncoder', 'preprocess_wav', 'extract_mel_features',
     
     # 文本到梅尔频谱转换
-    'TextEncoder', 'MelDecoder',
+    'TextEncoder', 'MelDecoder', 'TransformerTTS', 'TransformerTTSLoss',
     
     # 声码器
     'HiFiGAN', 'Vocoder', 'VocoderType',

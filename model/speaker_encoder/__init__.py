@@ -3,7 +3,9 @@
 """
 
 from .speaker_encoder import SpeakerEncoder
+from .xvector import XVectorEncoder, TDNN, StatsPooling
 from .audio_processing import preprocess_wav, load_wav, save_wav
 from .mel_features import extract_mel_features
 
-__all__ = ['SpeakerEncoder', 'preprocess_wav', 'load_wav', 'save_wav', 'extract_mel_features'] 
+__all__ = ['SpeakerEncoder', 'XVectorEncoder', 'TDNN', 'StatsPooling', 
+           'preprocess_wav', 'load_wav', 'save_wav', 'extract_mel_features'] 

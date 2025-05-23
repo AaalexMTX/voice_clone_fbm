@@ -112,7 +112,8 @@ def synthesize_speech():
             if not os.path.exists(embedding_path):
                 return jsonify({'error': '找不到指定的嵌入向量文件'}), 404
             
-            speaker_embedding = voice_clone_system.load_speaker_embedding(embedding_path)
+            # 加载嵌入向量
+            speaker_embedding = np.load(embedding_path)
             voice_clone_system.synthesize(text, speaker_embedding, output_path)
         else:
             # 使用参考音频
@@ -165,55 +166,341 @@ def get_audio(output_id):
     
     return send_file(str(filepath), mimetype='audio/wav')
 
-@app.route('/api/tts', methods=['POST'])
-def text_to_speech():
-    """一站式语音克隆API：上传参考音频并直接合成"""
-    if 'audio' not in request.files:
-        return jsonify({'error': '没有上传音频文件'}), 400
+@app.route('/api/clone', methods=['POST'])
+def voice_clone_api():
+    """
+    一站式语音克隆API：接收wav文件路径+content内容，生成目标音频
+    流程：
+    1. wav+content生成说话人特征embedding
+    2. embedding+预期需合成的text -> Transformer -> 生成Mel频谱
+    3. Mel频谱 -> HIFI-GAN生成目标音频
+    """
+    # 解析请求数据
+    data = request.json
+    if not data:
+        return jsonify({'error': '没有提供请求数据'}), 400
     
-    if 'text' not in request.form:
-        return jsonify({'error': '没有提供文本'}), 400
+    # 检查必要参数
+    if 'wav_path' not in data:
+        return jsonify({'error': '缺少wav_path参数'}), 400
+    if 'content' not in data:
+        return jsonify({'error': '缺少content参数'}), 400
+    if 'target_text' not in data:
+        return jsonify({'error': '缺少target_text参数'}), 400
     
-    file = request.files['audio']
-    text = request.form['text']
+    wav_path = data.get('wav_path')
+    content = data.get('content')
+    target_text = data.get('target_text')
     
-    if file.filename == '':
-        return jsonify({'error': '没有选择音频文件'}), 400
+    # 可选参数
+    tts_type = data.get('tts_type', 'transformer')  # 默认使用transformer
+    vocoder_type = data.get('vocoder_type', 'hifigan')  # 默认使用hifigan
     
-    if file and allowed_file(file.filename):
+    try:
+        # 检查音频文件是否存在
+        if not os.path.exists(wav_path):
+            return jsonify({'error': f'找不到音频文件: {wav_path}'}), 404
+        
+        # 生成唯一的输出ID和路径
+        output_id = str(uuid.uuid4())
+        output_path = str(OUTPUT_FOLDER / f"{output_id}.wav")
+        
+        logger.info(f"处理语音克隆请求: wav_path={wav_path}, content={content}, target_text={target_text}")
+        
+        # 步骤1: 提取说话人嵌入
+        logger.info("步骤1: 提取说话人嵌入")
+        speaker_embedding = voice_clone_system.extract_speaker_embedding(wav_path)
+        
+        # 保存嵌入向量（可选）
+        embedding_path = str(OUTPUT_FOLDER / f"{output_id}_embedding.npy")
+        np.save(embedding_path, speaker_embedding)
+        
+        # 步骤2和3: 合成语音（内部会使用Transformer生成Mel频谱，然后用HIFI-GAN生成音频）
+        logger.info("步骤2和3: 使用Transformer生成Mel频谱并用HIFI-GAN生成音频")
+        voice_clone_system.synthesize(target_text, speaker_embedding, output_path)
+        
+        return jsonify({
+            'status': 'success',
+            'message': '语音克隆完成',
+            'output_id': output_id,
+            'output_path': output_path,
+            'embedding_path': embedding_path,
+            'download_url': f"/api/audio/{output_id}"
+        })
+    except Exception as e:
+        logger.error(f"语音克隆过程中出错: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': f'语音克隆过程中出错: {str(e)}'}), 500
+
+@app.route('/api/train/xvector', methods=['POST'])
+def train_xvector_api():
+    """
+    训练X-Vector说话人编码器API
+    
+    请求参数:
+    - data_dir: 训练数据目录，包含多个说话人子目录
+    - epochs: 训练轮数（可选，默认100）
+    - batch_size: 批次大小（可选，默认32）
+    - embedding_dim: 嵌入向量维度（可选，默认512）
+    - augment: 是否使用数据增强（可选，默认False）
+    - save_dir: 模型保存目录（可选，默认model/data/checkpoints）
+    """
+    # 解析请求数据
+    data = request.json
+    if not data:
+        return jsonify({'error': '没有提供请求数据'}), 400
+    
+    # 检查必要参数
+    if 'data_dir' not in data:
+        return jsonify({'error': '缺少data_dir参数'}), 400
+    
+    data_dir = data.get('data_dir')
+    epochs = data.get('epochs', 100)
+    batch_size = data.get('batch_size', 32)
+    embedding_dim = data.get('embedding_dim', 512)
+    augment = data.get('augment', False)
+    save_dir = data.get('save_dir', 'model/data/checkpoints')
+    
+    # 确保目录存在
+    os.makedirs(save_dir, exist_ok=True)
+    
+    try:
+        # 检查训练模块是否可用
+        import importlib
         try:
-            # 保存上传的音频
-            reference_filename = str(uuid.uuid4()) + os.path.splitext(file.filename)[1]
-            reference_path = str(UPLOAD_FOLDER / reference_filename)
-            file.save(reference_path)
-            
-            # 生成输出路径
-            output_id = str(uuid.uuid4())
-            output_path = str(OUTPUT_FOLDER / f"{output_id}.wav")
-            
-            # 执行语音克隆
-            voice_clone_system.clone_voice(text, reference_path, output_path)
-            
-            # 清理参考音频文件
-            if os.path.exists(reference_path):
-                os.remove(reference_path)
-            
-            return jsonify({
-                'status': 'success',
-                'output_id': output_id,
-                'output_url': f"/api/audio/{output_id}"
-            })
-        except Exception as e:
-            logger.error(f"处理TTS请求时出错: {str(e)}")
-            return jsonify({'error': f'处理请求时出错: {str(e)}'}), 500
+            speaker_encoder_module = importlib.import_module("model.speaker_encoder.train_xvector")
+            train_xvector = speaker_encoder_module.train_xvector
+            logger.info("成功导入X-Vector训练模块")
+        except ImportError as e:
+            logger.error(f"导入X-Vector训练模块失败: {str(e)}")
+            return jsonify({'error': f'导入训练模块失败: {str(e)}'}), 500
+        
+        # 创建参数对象
+        class Args:
+            pass
+        
+        args = Args()
+        args.data_dir = data_dir
+        args.epochs = epochs
+        args.batch_size = batch_size
+        args.embedding_dim = embedding_dim
+        args.augment = augment
+        args.save_dir = save_dir
+        args.train_ratio = 0.9
+        args.ext = "wav"
+        args.min_duration = 3.0
+        args.max_duration = 8.0
+        args.sample_rate = 16000
+        args.mel_channels = 80
+        args.lr = 0.001
+        args.lr_step = 20
+        args.no_cuda = False
+        args.num_workers = 4
+        args.save_freq = 10
+        
+        # 启动训练（在后台线程中运行）
+        import threading
+        
+        def train_thread():
+            try:
+                logger.info(f"开始训练X-Vector模型: data_dir={data_dir}, epochs={epochs}")
+                train_xvector(args)
+                logger.info("X-Vector模型训练完成")
+                
+                # 复制模型到指定位置
+                src_path = os.path.join(save_dir, "xvector_best.pt")
+                dst_path = os.path.join("model/data/checkpoints", "xvector_encoder.pt")
+                
+                if os.path.exists(src_path):
+                    import shutil
+                    logger.info(f"复制模型: {src_path} -> {dst_path}")
+                    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                    shutil.copy(src_path, dst_path)
+                    logger.info(f"已将最佳模型复制到: {dst_path}")
+                else:
+                    logger.warning(f"找不到训练好的模型: {src_path}")
+                
+                # 重新加载模型
+                try:
+                    global voice_clone_system
+                    logger.info("重新初始化语音克隆系统...")
+                    voice_clone_system = VoiceCloneSystem(
+                        model_dir="model/data/checkpoints", 
+                        device=None, 
+                        tts_type="transformer"
+                    )
+                    logger.info("已重新加载语音克隆系统")
+                except Exception as e:
+                    logger.error(f"重新加载语音克隆系统时出错: {str(e)}")
+            except Exception as e:
+                logger.error(f"训练X-Vector模型时出错: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+        
+        # 启动训练线程
+        thread = threading.Thread(target=train_thread)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            'status': 'success',
+            'message': '已启动X-Vector模型训练',
+            'save_dir': save_dir,
+            'expected_model_path': os.path.join(save_dir, "xvector_best.pt"),
+            'final_model_path': os.path.join("model/data/checkpoints", "xvector_encoder.pt")
+        })
+    except Exception as e:
+        logger.error(f"启动X-Vector模型训练时出错: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': f'启动X-Vector模型训练时出错: {str(e)}'}), 500
+
+@app.route('/api/train/transformer_tts', methods=['POST'])
+def train_transformer_tts_api():
+    """
+    训练Transformer TTS模型API
     
-    return jsonify({'error': '不支持的文件类型'}), 400
+    请求参数:
+    - train_metadata: 训练元数据文件路径
+    - val_metadata: 验证元数据文件路径
+    - mel_dir: 梅尔频谱目录（可选）
+    - speaker_embed_dir: 说话人嵌入目录（可选）
+    - epochs: 训练轮数（可选，默认100）
+    - batch_size: 批次大小（可选，默认32）
+    - d_model: 模型维度（可选，默认512）
+    - speaker_dim: 说话人嵌入维度（可选，默认512）
+    - checkpoint_dir: 检查点保存目录（可选，默认model/data/checkpoints）
+    """
+    # 解析请求数据
+    data = request.json
+    if not data:
+        return jsonify({'error': '没有提供请求数据'}), 400
+    
+    # 检查必要参数
+    if 'train_metadata' not in data:
+        return jsonify({'error': '缺少train_metadata参数'}), 400
+    if 'val_metadata' not in data:
+        return jsonify({'error': '缺少val_metadata参数'}), 400
+    
+    train_metadata = data.get('train_metadata')
+    val_metadata = data.get('val_metadata')
+    mel_dir = data.get('mel_dir')
+    speaker_embed_dir = data.get('speaker_embed_dir')
+    epochs = data.get('epochs', 100)
+    batch_size = data.get('batch_size', 32)
+    d_model = data.get('d_model', 512)
+    speaker_dim = data.get('speaker_dim', 512)
+    checkpoint_dir = data.get('checkpoint_dir', 'model/data/checkpoints')
+    
+    # 确保目录存在
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    
+    try:
+        # 检查训练模块是否可用
+        import importlib
+        try:
+            text_to_mel_module = importlib.import_module("model.text_to_mel.train_transformer_tts")
+            train = text_to_mel_module.train
+            logger.info("成功导入Transformer TTS训练模块")
+        except ImportError as e:
+            logger.error(f"导入Transformer TTS训练模块失败: {str(e)}")
+            return jsonify({'error': f'导入训练模块失败: {str(e)}'}), 500
+        
+        # 创建参数对象
+        class Args:
+            pass
+        
+        args = Args()
+        args.train_metadata = train_metadata
+        args.val_metadata = val_metadata
+        args.mel_dir = mel_dir
+        args.speaker_embed_dir = speaker_embed_dir
+        args.epochs = epochs
+        args.batch_size = batch_size
+        args.d_model = d_model
+        args.speaker_dim = speaker_dim
+        args.checkpoint_dir = checkpoint_dir
+        args.log_dir = os.path.join(checkpoint_dir, "logs")
+        args.vocab_size = 256
+        args.nhead = 8
+        args.num_encoder_layers = 6
+        args.num_decoder_layers = 6
+        args.dim_feedforward = 2048
+        args.dropout = 0.1
+        args.mel_dim = 80
+        args.max_seq_len = 1000
+        args.learning_rate = 0.0001
+        args.lr_decay_step = 50000
+        args.lr_decay_gamma = 0.5
+        args.grad_clip_thresh = 1.0
+        args.device = "cuda" if torch.cuda.is_available() else "cpu"
+        args.num_workers = 4
+        args.save_step = 5000
+        args.eval_step = 1000
+        args.log_step = 100
+        
+        # 启动训练（在后台线程中运行）
+        import threading
+        
+        def train_thread():
+            try:
+                logger.info(f"开始训练Transformer TTS模型: train_metadata={train_metadata}, epochs={epochs}")
+                train(args)
+                logger.info("Transformer TTS模型训练完成")
+                
+                # 复制模型到指定位置
+                src_path = os.path.join(checkpoint_dir, "transformer_tts_best.pt")
+                dst_path = os.path.join("model/data/checkpoints", "transformer_tts.pt")
+                if os.path.exists(src_path):
+                    import shutil
+                    logger.info(f"复制模型: {src_path} -> {dst_path}")
+                    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                    shutil.copy(src_path, dst_path)
+                    logger.info(f"已将最佳模型复制到: {dst_path}")
+                else:
+                    logger.warning(f"找不到训练好的模型: {src_path}")
+                
+                # 重新加载模型
+                try:
+                    global voice_clone_system
+                    logger.info("重新初始化语音克隆系统...")
+                    voice_clone_system = VoiceCloneSystem(
+                        model_dir="model/data/checkpoints", 
+                        device=None, 
+                        tts_type="transformer"
+                    )
+                    logger.info("已重新加载语音克隆系统")
+                except Exception as e:
+                    logger.error(f"重新加载语音克隆系统时出错: {str(e)}")
+            except Exception as e:
+                logger.error(f"训练Transformer TTS模型时出错: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+        
+        # 启动训练线程
+        thread = threading.Thread(target=train_thread)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            'status': 'success',
+            'message': '已启动Transformer TTS模型训练',
+            'checkpoint_dir': checkpoint_dir,
+            'expected_model_path': os.path.join(checkpoint_dir, "transformer_tts_best.pt"),
+            'final_model_path': os.path.join("model/data/checkpoints", "transformer_tts.pt")
+        })
+    except Exception as e:
+        logger.error(f"启动Transformer TTS模型训练时出错: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': f'启动Transformer TTS模型训练时出错: {str(e)}'}), 500
 
 def init_model(model_dir, device):
     """初始化模型"""
     global voice_clone_system
     logger.info(f"正在加载语音克隆模型，模型目录: {model_dir}，设备: {device}")
-    voice_clone_system = VoiceCloneSystem(model_dir=model_dir, device=device)
+    voice_clone_system = VoiceCloneSystem(model_dir=model_dir, device=device, tts_type="transformer")
     logger.info("模型加载完成")
 
 def setup_dirs():
@@ -234,7 +521,7 @@ def main():
     parser = argparse.ArgumentParser(description="语音克隆API服务器")
     parser.add_argument("--host", type=str, default=config["server"]["host"], help="服务器主机地址")
     parser.add_argument("--port", type=int, default=config["server"]["port"], help="服务器端口")
-    parser.add_argument("--model-dir", type=str, default="model/vocoder/models", help="模型目录")
+    parser.add_argument("--model-dir", type=str, default="model/data/checkpoints", help="模型目录")
     parser.add_argument("--device", type=str, default=None, help="设备 (cpu或cuda)")
     parser.add_argument("--debug", action="store_true", help="是否开启调试模式")
     

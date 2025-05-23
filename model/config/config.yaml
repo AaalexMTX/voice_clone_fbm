@@ -1,13 +1,13 @@
 data:
-  output_dir: E:\Pycharm2024\Code_Item\voice_clone_fbm\model\outputs
-  temp_dir: E:\Pycharm2024\Code_Item\voice_clone_fbm\model\Temp
-  upload_dir: E:\Pycharm2024\Code_Item\voice_clone_fbm\model\uploads
+  output_dir: model/data/outputs
+  temp_dir: model/data/temp
+  upload_dir: model/data/uploads
 model:
   # 通用配置
   device: cpu
   n_mels: 80
   sample_rate: 22050
-  model_dir: E:\Pycharm2024\Code_Item\voice_clone_fbm\model\vocoder\models
+  model_dir: model/data/checkpoints
   
   # 文本编码器配置
   vocab_size: 256
@@ -41,18 +41,16 @@ training:
   eval_interval: 5
 
 paths:
-  checkpoint_dir: checkpoints
-  log_dir: logs
-  data_dir: data
+  checkpoint_dir: model/data/checkpoints
+  log_dir: model/data/logs
+  data_dir: model/data
 server:
   debug: false
   host: 0.0.0.0
   port: 7860
-  upload_dir: E:\Pycharm2024\Code_Item\voice_clone_fbm\model\uploads
+  upload_dir: model/data/uploads
 test:
-  audio: E:\Pycharm2024\Code_Item\voice_clone_fbm\model\tests\sample.wav
-  output_dir: E:\Pycharm2024\Code_Item\voice_clone_fbm\model\outputs\test
-  text: "E:\\Pycharm2024\\Code_Item\\voice_clone_fbm\\model\\\u8FD9\u662F\u4E00\u6BB5\
-    \u6D4B\u8BD5\u8BED\u97F3\uFF0C\u7528\u4E8E\u6D4B\u8BD5\u8BED\u97F3\u514B\u9686\
-    \u7CFB\u7EDF\u3002"
+  audio: model/data/wavs/sample.wav
+  output_dir: model/data/outputs/test
+  text: "这是一段测试语音，用于测试语音克隆系统。"
   url: http://localhost:5000
