@@ -10,6 +10,11 @@ import (
 
 var DB *gorm.DB
 
+// GetDB 获取数据库连接
+func GetDB() *gorm.DB {
+	return DB
+}
+
 // InitDB 初始化数据库连接
 func InitDB() error {
 	var err error
@@ -47,8 +52,11 @@ func autoMigrate() error {
 		return err
 	}
 
+	fmt.Println("当前数据库表:", tables)
+
 	// 用户表迁移
 	if !contains(tables, "users") {
+		fmt.Println("创建users表")
 		if err := DB.Migrator().CreateTable(&User{}); err != nil {
 			return err
 		}
@@ -60,6 +68,7 @@ func autoMigrate() error {
 
 	// 音频表迁移
 	if !contains(tables, "audios") {
+		fmt.Println("创建audios表")
 		if err := DB.Migrator().CreateTable(&Audio{}); err != nil {
 			return err
 		}
@@ -71,6 +80,7 @@ func autoMigrate() error {
 
 	// 用户素材表迁移
 	if !contains(tables, "user_audios") {
+		fmt.Println("创建user_audios表")
 		if err := DB.Migrator().CreateTable(&UserAudio{}); err != nil {
 			return err
 		}
@@ -95,6 +105,7 @@ func autoMigrate() error {
 	}
 
 	if !contains(tables, "models") {
+		fmt.Println("创建models表")
 		if err := DB.Migrator().CreateTable(&VoiceModel{}); err != nil {
 			return err
 		}
@@ -106,6 +117,7 @@ func autoMigrate() error {
 
 	// 用户音频模型关系表迁移
 	if !contains(tables, "user_audio_models") {
+		fmt.Println("创建user_audio_models表")
 		if err := DB.Migrator().CreateTable(&UserAudioModel{}); err != nil {
 			return err
 		}
@@ -114,6 +126,26 @@ func autoMigrate() error {
 			return err
 		}
 	}
+
+	// 推理历史记录表迁移
+	if !contains(tables, "inference_histories") {
+		fmt.Println("创建inference_histories表")
+		if err := DB.Migrator().CreateTable(&InferenceHistory{}); err != nil {
+			fmt.Printf("创建inference_histories表失败: %v\n", err)
+			return err
+		}
+		fmt.Println("inference_histories表创建成功")
+	} else {
+		fmt.Println("更新inference_histories表结构")
+		if err := DB.AutoMigrate(&InferenceHistory{}); err != nil {
+			fmt.Printf("更新inference_histories表结构失败: %v\n", err)
+			return err
+		}
+	}
+
+	// 重新获取表列表，检查是否成功创建
+	tables, _ = DB.Migrator().GetTables()
+	fmt.Println("迁移后数据库表:", tables)
 
 	return nil
 }

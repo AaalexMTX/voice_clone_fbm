@@ -65,6 +65,110 @@ function displayTrainingAudioList(audios) {
     });
 }
 
+// 加载用户模型列表
+async function loadUserModelsForTraining() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/model/list`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            displayUserModelsForTraining(data.models || []);
+        } else {
+            console.error('Failed to load models for training');
+        }
+    } catch (error) {
+        console.error('Error loading models for training:', error);
+    }
+}
+
+// 显示用户模型列表（训练中和已完成）
+function displayUserModelsForTraining(models) {
+    const trainingModelsList = document.getElementById('training-models-list');
+    const completedModelsList = document.getElementById('completed-models-list');
+
+    if (!trainingModelsList || !completedModelsList) return;
+
+    // 清空容器
+    trainingModelsList.innerHTML = '';
+    completedModelsList.innerHTML = '';
+
+    // 分类模型
+    const trainingModels = [];
+    const completedModels = [];
+
+    // 分类用户模型
+    models.forEach(model => {
+        if (model.state === 1) {
+            trainingModels.push(model);
+        } else if (model.state === 2) {
+            completedModels.push(model);
+        }
+    });
+
+    // 显示训练中的模型
+    if (trainingModels.length === 0) {
+        trainingModelsList.innerHTML = '<div class="no-models-message">暂无训练中的模型</div>';
+    } else {
+        trainingModels.forEach(model => {
+            const modelElement = createModelElement(model, 'in-progress');
+            trainingModelsList.appendChild(modelElement);
+        });
+    }
+
+    // 显示已完成的模型
+    if (completedModels.length === 0) {
+        completedModelsList.innerHTML = '<div class="no-models-message">暂无已完成的模型</div>';
+    } else {
+        completedModels.forEach(model => {
+            const modelElement = createModelElement(model, 'completed');
+            completedModelsList.appendChild(modelElement);
+        });
+    }
+}
+
+// 创建模型元素
+function createModelElement(model, status) {
+    const date = new Date(model.createdAt);
+    const formattedDate = date.toLocaleDateString('zh-CN');
+
+    const modelElement = document.createElement('div');
+    modelElement.className = `model-item ${status}`;
+    modelElement.dataset.modelId = model.mid;
+
+    let statusText = status === 'in-progress' ? '训练中' : '已完成';
+    let statusClass = status === 'in-progress' ? 'in-progress' : 'completed';
+    let statusColor = status === 'in-progress' ? '#e74c3c' : '#2ecc71';
+
+    modelElement.innerHTML = `
+        <div class="model-item-name">${model.modelName}</div>
+        <div class="model-item-status">
+            <span class="status-badge ${statusClass}"></span>
+            <span style="color: ${statusColor}">${statusText}</span>
+        </div>
+        <div class="model-item-date">创建于 ${formattedDate}</div>
+    `;
+
+    // 点击事件 - 选择模型
+    modelElement.addEventListener('click', () => {
+        // 如果是已完成的模型，可以选择它
+        if (status === 'completed') {
+            document.querySelectorAll('.model-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            modelElement.classList.add('active');
+
+            // 可以在这里添加选中模型后的逻辑
+            console.log(`选中模型: ${model.modelName}, ID: ${model.mid}`);
+        }
+    });
+
+    return modelElement;
+}
+
 // 显示训练状态
 function showTrainingStatus(message, type = 'info') {
     const statusDiv = document.getElementById('training-status');
@@ -141,6 +245,11 @@ async function startTraining() {
         if (response.ok) {
             showTrainingStatus('模型训练已开始，请耐心等待...', 'success');
             pollTrainingStatus(data.taskId);
+
+            // 刷新模型列表
+            setTimeout(() => {
+                loadUserModelsForTraining();
+            }, 2000);
         } else {
             showTrainingStatus(data.error || '开始训练失败', 'error');
         }
@@ -166,6 +275,9 @@ async function pollTrainingStatus(taskId) {
                 if (data.status === 'completed') {
                     clearInterval(pollInterval);
                     showTrainingStatus('模型训练完成！', 'success');
+
+                    // 刷新模型列表
+                    loadUserModelsForTraining();
                 } else if (data.status === 'failed') {
                     clearInterval(pollInterval);
                     showTrainingStatus('模型训练失败: ' + data.error, 'error');
@@ -179,8 +291,21 @@ async function pollTrainingStatus(taskId) {
 
 // 初始化训练页面
 document.addEventListener('DOMContentLoaded', function () {
+    // 加载用户模型
+    loadUserModelsForTraining();
+
+    // 绑定开始训练按钮事件
     const trainButton = document.getElementById('start-training-btn');
     if (trainButton) {
         trainButton.addEventListener('click', startTraining);
     }
+
+    // 切换到训练页面时刷新模型列表
+    document.querySelectorAll('.sidebar li').forEach(item => {
+        item.addEventListener('click', function () {
+            if (this.textContent === '模型训练') {
+                loadUserModelsForTraining();
+            }
+        });
+    });
 }); 

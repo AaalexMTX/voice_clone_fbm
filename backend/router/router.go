@@ -21,6 +21,9 @@ func InitRouter() *gin.Engine {
 		api.POST("/register", controller.Register)
 		api.POST("/login", controller.Login)
 
+		// 数据库检查路由（调试用）
+		api.GET("/db/check", controller.CheckDatabase)
+
 		// 需要认证的路由组
 		authenticated := api.Group("")
 		authenticated.Use(middleware.JWTAuth())
@@ -48,6 +51,17 @@ func InitRouter() *gin.Engine {
 				model.POST("/train", controller.StartTraining)
 				// 获取用户的所有模型
 				model.GET("/list", controller.GetUserModels)
+			}
+
+			// 推理历史记录相关
+			inference := authenticated.Group("/inference")
+			{
+				// 保存推理历史记录
+				inference.POST("/save", controller.SaveInferenceHistory)
+				// 获取用户的推理历史记录
+				inference.GET("/list", controller.GetUserInferenceHistories)
+				// 获取推理历史记录详情
+				inference.GET("/detail/:hid", controller.GetInferenceHistoryDetail)
 			}
 		}
 	}

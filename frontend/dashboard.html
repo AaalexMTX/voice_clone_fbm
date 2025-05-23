@@ -103,16 +103,25 @@
                                 <div class="placeholder-text">合成的音频将显示在这里</div>
                             </div>
                             <div class="result-audio" id="synthesis-result" style="display:none;">
+                                <div class="audio-title">
+                                    <input type="text" id="synthesis-audio-name" placeholder="音频的名称" value="合成音频">
+                                </div>
                                 <div class="audio-waveform">
                                     <div class="wave-visualization"></div>
                                 </div>
                                 <audio id="synthesis-audio" controls></audio>
                                 <div class="result-actions">
+                                    <button class="action-btn play-btn" id="play-synthesis">
+                                        <span>播放</span>
+                                    </button>
                                     <button class="action-btn download-btn" id="download-synthesis">
                                         <span>下载</span>
                                     </button>
-                                    <button class="action-btn share-btn" id="share-synthesis">
-                                        <span>分享</span>
+                                    <button class="action-btn rename-btn" id="rename-synthesis">
+                                        <span>重命名</span>
+                                    </button>
+                                    <button class="action-btn save-btn" id="save-synthesis">
+                                        <span>保存</span>
                                     </button>
                                 </div>
                             </div>
@@ -130,43 +139,67 @@
 
             <div id="model-training" class="tab-content">
                 <h2>模型训练</h2>
-                <div class="training-form">
-                    <div class="form-group">
-                        <label>模型名称</label>
-                        <input type="text" id="model-name" placeholder="给您的模型起个名字">
-                    </div>
+                <div class="training-layout">
+                    <!-- 左侧训练表单 -->
+                    <div class="training-form-panel">
+                        <h3 class="panel-title">模型训练</h3>
+                        <div class="training-form">
+                            <div class="form-group">
+                                <label>模型名称</label>
+                                <input type="text" id="model-name" placeholder="给您的模型起个名字">
+                            </div>
 
-                    <div class="form-group">
-                        <label>选择训练音频</label>
-                        <div class="audio-selection">
-                            <div class="audio-list" id="training-audio-list">
-                                <!-- 音频列表将通过JavaScript动态添加 -->
+                            <div class="form-group">
+                                <label>选择训练音频</label>
+                                <div class="audio-selection">
+                                    <div class="audio-list" id="training-audio-list">
+                                        <!-- 音频列表将通过JavaScript动态添加 -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>训练参数</label>
+                                <div class="training-params">
+                                    <div class="param-item">
+                                        <label>训练轮次</label>
+                                        <input type="number" id="epochs" value="100" min="1" max="1000">
+                                    </div>
+                                    <div class="param-item">
+                                        <label>批次大小</label>
+                                        <input type="number" id="batch-size" value="32" min="1" max="128">
+                                    </div>
+                                    <div class="param-item">
+                                        <label>学习率</label>
+                                        <input type="number" id="learning-rate" value="0.001" step="0.0001" min="0.0001"
+                                            max="0.1">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button class="start-training" onclick="startTraining()">开始训练</button>
+                                <div class="training-status" id="training-status"></div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>训练参数</label>
-                        <div class="training-params">
-                            <div class="param-item">
-                                <label>训练轮次</label>
-                                <input type="number" id="epochs" value="100" min="1" max="1000">
-                            </div>
-                            <div class="param-item">
-                                <label>批次大小</label>
-                                <input type="number" id="batch-size" value="32" min="1" max="128">
-                            </div>
-                            <div class="param-item">
-                                <label>学习率</label>
-                                <input type="number" id="learning-rate" value="0.001" step="0.0001" min="0.0001"
-                                    max="0.1">
+                    <!-- 右侧模型面板 -->
+                    <div class="training-models-panel">
+                        <div class="models-section">
+                            <h3>训练中的模型</h3>
+                            <div class="models-list" id="training-models-list">
+                                <!-- 训练中的模型将通过JavaScript动态添加 -->
+                                <div class="no-models-message">暂无训练中的模型</div>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button class="start-training" onclick="startTraining()">开始训练</button>
-                        <div class="training-status" id="training-status"></div>
+                        <div class="models-section">
+                            <h3>已完成的模型</h3>
+                            <div class="models-list" id="completed-models-list">
+                                <!-- 已完成的模型将通过JavaScript动态添加 -->
+                                <div class="no-models-message">暂无已完成的模型</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

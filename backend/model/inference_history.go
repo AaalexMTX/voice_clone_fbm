@@ -11,6 +11,7 @@ type InferenceHistory struct {
 	MID        string  `gorm:"type:char(32);index;not null" json:"mid"` // 模型ID
 	InputText  string  `gorm:"type:text;not null" json:"input_text"`    // 输入文本
 	OutputPath string  `gorm:"type:varchar(255)" json:"output_path"`    // 输出音频路径
+	AudioName  string  `gorm:"type:varchar(255)" json:"audio_name"`     // 音频名称
 	Status     int8    `gorm:"type:tinyint;default:1" json:"status"`    // 状态：1处理中 2已完成 3失败
 	Duration   float32 `gorm:"type:float" json:"duration"`              // 音频时长(秒)
 	gorm.Model         // 包含ID、创建时间、更新时间、删除时间

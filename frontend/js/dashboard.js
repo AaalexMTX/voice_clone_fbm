@@ -59,9 +59,12 @@ function switchTab(tabId) {
         loadAudioList();
     }
 
-    // 如果切换到模型训练标签页，加载训练音频列表
+    // 如果切换到模型训练标签页，加载训练音频列表和用户模型列表
     if (tabId === 'model-training') {
         loadTrainingAudioList();
+        if (typeof loadUserModelsForTraining === 'function') {
+            loadUserModelsForTraining();
+        }
     }
 }
 
