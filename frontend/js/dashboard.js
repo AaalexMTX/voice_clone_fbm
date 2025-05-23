@@ -683,8 +683,52 @@ function displayUserModels(models) {
     const modelsContainer = document.getElementById('models-list');
     if (!modelsContainer) return;
 
-    // 保留默认模型
-    const defaultModel = modelsContainer.innerHTML;
+    // 清空容器
+    modelsContainer.innerHTML = '';
+
+    // 添加系统内置的默认模型
+    const defaultModelCard = document.createElement('div');
+    defaultModelCard.className = 'model-card active'; // 默认选中
+    defaultModelCard.dataset.modelId = 'default';
+    defaultModelCard.innerHTML = `
+        <div class="model-icon">🔊</div>
+        <div class="model-info">
+            <div class="model-name">系统内置-默认模型</div>
+            <div class="model-date">系统默认 | <span style="color: #3498db;">通用模型</span></div>
+        </div>
+    `;
+
+    // 点击选择模型
+    defaultModelCard.addEventListener('click', () => {
+        document.querySelectorAll('.model-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        defaultModelCard.classList.add('active');
+    });
+
+    modelsContainer.appendChild(defaultModelCard);
+
+    // 添加假的训练完成模型 TEST_THCHS30_1
+    const thchsModelCard = document.createElement('div');
+    thchsModelCard.className = 'model-card'; // 不默认选中
+    thchsModelCard.dataset.modelId = 'thchs30_1';
+    thchsModelCard.innerHTML = `
+        <div class="model-icon">🎯</div>
+        <div class="model-info">
+            <div class="model-name">TEST_THCHS30_1</div>
+            <div class="model-date">2025-05-22 | <span style="color: #2ecc71;">训练完成</span></div>
+        </div>
+    `;
+
+    // 点击选择模型
+    thchsModelCard.addEventListener('click', () => {
+        document.querySelectorAll('.model-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        thchsModelCard.classList.add('active');
+    });
+
+    modelsContainer.appendChild(thchsModelCard);
 
     // 添加用户模型
     models.forEach(model => {
@@ -713,18 +757,7 @@ function displayUserModels(models) {
         modelsContainer.appendChild(modelCard);
     });
 
-    // 如果没有模型，显示提示
-    if (models.length === 0) {
-        const noModels = document.createElement('div');
-        noModels.className = 'no-models';
-        noModels.innerHTML = `
-            <div class="placeholder-icon">🎭</div>
-            <div class="placeholder-text">您还没有训练好的模型</div>
-            <small>请先在"模型训练"标签页训练您的语音模型</small>
-        `;
-
-        modelsContainer.appendChild(noModels);
-    }
+    // 不再显示"没有模型"的提示，因为我们已经添加了默认模型
 }
 
 // 开始语音合成
@@ -743,6 +776,7 @@ async function startSynthesis() {
     }
 
     const modelId = selectedModel.dataset.modelId || 'default';
+    const modelName = selectedModel.querySelector('.model-name').textContent;
 
     // 获取语速和音调
     const speed = parseFloat(document.getElementById('speed-control').value);
@@ -752,42 +786,31 @@ async function startSynthesis() {
     showSynthesisLoading();
 
     try {
-        // 这里添加实际的API调用
         // 模拟API调用和响应
         setTimeout(() => {
             // 模拟成功响应
-            showSynthesisResult();
+            // 根据不同的模型使用不同的示例音频
+            let audioUrl = null;
+
+            if (modelId === 'thchs30_1') {
+                // 使用THCHS30模型的示例音频文件
+                audioUrl = './assets/demo_thchs30.mp3';
+                showSynthesisMessage(`使用 ${modelName} 模型合成成功！`, 'success');
+            } else if (modelId === 'default') {
+                // 使用默认模型的示例音频文件
+                audioUrl = './assets/demo_default.mp3';
+                showSynthesisMessage(`使用默认模型合成成功！`, 'success');
+            } else {
+                // 其他模型
+                audioUrl = './assets/demo_audio.mp3';
+                showSynthesisMessage(`使用 ${modelName} 模型合成成功！`, 'success');
+            }
+
+            showSynthesisResult(audioUrl);
 
             // 添加到历史记录
-            addToSynthesisHistory(textToSynthesize, modelId);
+            addToSynthesisHistory(textToSynthesize, modelId, audioUrl);
         }, 2000);
-
-        /* 实际API调用示例：
-        const response = await fetch(`${API_BASE_URL}/synthesis`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify({
-                text: textToSynthesize,
-                modelId,
-                params: {
-                    speed,
-                    pitch
-                }
-            })
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            showSynthesisResult(data.audioUrl);
-            addToSynthesisHistory(textToSynthesize, modelId, data.audioUrl);
-        } else {
-            const error = await response.json();
-            showSynthesisMessage(error.message || '合成失败', 'error');
-        }
-        */
 
     } catch (error) {
         showSynthesisMessage('网络错误，请稍后重试', 'error');
