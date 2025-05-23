@@ -5,7 +5,7 @@
 API模块，处理HTTP请求和响应
 """
 
-from .server import app, init_model, setup_dirs
-from .service import start_model_service, start_transformer_server
+from .server import app, init_server, start_server
+from .voice_clone_service import VoiceCloneService
 
-__all__ = ['app', 'init_model', 'setup_dirs', 'start_model_service', 'start_transformer_server'] 
+__all__ = ['app', 'init_server', 'start_server', 'VoiceCloneService'] 

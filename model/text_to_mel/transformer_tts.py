@@ -12,6 +12,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import math
+import json
+import yaml
+from pathlib import Path
 
 
 class PositionalEncoding(nn.Module):
@@ -199,21 +202,23 @@ class TransformerTTS(nn.Module):
         """
         # 预处理解码器输入
         decoder_input = self.mel_prenet(decoder_input)
+        
+        # 位置编码
         decoder_input = self.pos_encoder(decoder_input)
         
         # Transformer解码
-        decoder_output = self.transformer_decoder(
+        output = self.transformer_decoder(
             decoder_input, 
-            memory,
+            memory, 
             tgt_mask=decoder_mask,
             memory_key_padding_mask=encoder_padding_mask
         )
         
         # 预测梅尔频谱
-        mel_output = self.mel_proj(decoder_output)
+        mel_output = self.mel_proj(output)
         
         # 预测停止标志
-        stop_pred = self.stop_proj(decoder_output).squeeze(-1)
+        stop_pred = self.stop_proj(output).squeeze(-1)
         
         return mel_output, stop_pred
     
@@ -224,75 +229,57 @@ class TransformerTTS(nn.Module):
         参数:
             text_ids: [batch_size, text_len]
             speaker_embedding: [batch_size, speaker_dim]
-            mel_targets: [batch_size, mel_len, mel_dim]（训练时提供）
+            mel_targets: [batch_size, mel_len, mel_dim]
             teacher_forcing_ratio: 教师强制比例
             
         返回:
             mel_outputs: [batch_size, mel_len, mel_dim]
             stop_preds: [batch_size, mel_len]
-            alignments: 注意力权重（可选）
         """
-        batch_size = text_ids.size(0)
-        device = text_ids.device
+        # 编码文本
+        memory, src_mask = self.encode_text(text_ids, speaker_embedding)
         
-        # 编码文本和说话人信息
-        memory, src_padding_mask = self.encode_text(text_ids, speaker_embedding)
+        # 如果没有目标梅尔频谱，则使用推理模式
+        if mel_targets is None:
+            return self.inference(text_ids, speaker_embedding)
         
-        # 训练模式
-        if mel_targets is not None:
-            mel_len = mel_targets.size(1)
-            
-            # 创建解码器掩码
-            tgt_mask = self.create_look_ahead_mask(mel_len)
-            
-            # 教师强制：使用目标梅尔频谱作为输入
-            if random.random() < teacher_forcing_ratio:
-                # 右移目标梅尔频谱作为解码器输入
-                decoder_input = torch.zeros_like(mel_targets)
-                decoder_input[:, 1:] = mel_targets[:, :-1]
-                
-                # 解码
-                mel_outputs, stop_preds = self.decode_step(
-                    memory, 
-                    src_padding_mask,
-                    decoder_input,
-                    tgt_mask
-                )
-                
-                return mel_outputs, stop_preds
-            
-        # 推理模式或不使用教师强制
-        max_len = 1000 if mel_targets is None else mel_targets.size(1) * 2
+        batch_size, max_len, mel_dim = mel_targets.shape
         
-        # 初始化解码器输入和输出
-        decoder_input = torch.zeros(batch_size, 1, self.mel_proj.out_features, device=device)
+        # 准备解码器输入
+        decoder_input = torch.zeros((batch_size, 1, mel_dim), device=text_ids.device)
+        
+        # 准备输出容器
         mel_outputs = []
         stop_preds = []
         
         # 自回归解码
-        for i in range(max_len):
+        for t in range(max_len):
+            # 创建解码器掩码
+            decoder_mask = self.create_look_ahead_mask(decoder_input.size(1))
+            
             # 解码单步
             mel_output, stop_pred = self.decode_step(
-                memory,
-                src_padding_mask,
-                decoder_input,
-                None if i == 0 else self.create_look_ahead_mask(i+1)
+                memory, src_mask, decoder_input, decoder_mask
             )
             
             # 保存输出
-            mel_outputs.append(mel_output[:, -1:])
-            stop_preds.append(stop_pred[:, -1:])
+            mel_outputs.append(mel_output[:, -1:, :])
+            stop_preds.append(stop_pred[:, -1])
             
-            # 更新解码器输入
-            decoder_input = torch.cat([decoder_input, mel_output[:, -1:]], dim=1)
+            # 准备下一步输入
+            if np.random.random() < teacher_forcing_ratio:
+                # 教师强制：使用目标作为下一步输入
+                next_input = mel_targets[:, t:t+1, :]
+            else:
+                # 自回归：使用预测作为下一步输入
+                next_input = mel_output[:, -1:, :]
             
-            # 检查停止条件
-            if mel_targets is None and torch.sigmoid(stop_pred[:, -1]).item() > 0.5:
-                break
+            # 拼接输入
+            decoder_input = torch.cat([decoder_input, next_input], dim=1)
         
-        # 连接所有输出
+        # 拼接输出
         mel_outputs = torch.cat(mel_outputs, dim=1)
-        stop_preds = torch.cat(stop_preds, dim=1)
+        stop_preds = torch.stack(stop_preds, dim=1)
         
         return mel_outputs, stop_preds
     
@@ -307,15 +294,48 @@ class TransformerTTS(nn.Module):
         返回:
             mel_outputs: [batch_size, mel_len, mel_dim]
         """
-        with torch.no_grad():
-            mel_outputs, _ = self.forward(text_ids, speaker_embedding, None)
+        # 编码文本
+        memory, src_mask = self.encode_text(text_ids, speaker_embedding)
+        
+        batch_size = text_ids.shape[0]
+        mel_dim = self.mel_proj.out_features
+        max_len = 1000  # 最大解码长度
+        
+        # 准备解码器输入
+        decoder_input = torch.zeros((batch_size, 1, mel_dim), device=text_ids.device)
+        
+        # 准备输出容器
+        mel_outputs = []
+        
+        # 自回归解码
+        for t in range(max_len):
+            # 创建解码器掩码
+            decoder_mask = self.create_look_ahead_mask(decoder_input.size(1))
+            
+            # 解码单步
+            mel_output, stop_pred = self.decode_step(
+                memory, src_mask, decoder_input, decoder_mask
+            )
+            
+            # 保存输出
+            mel_outputs.append(mel_output[:, -1:, :])
+            
+            # 检查是否应该停止
+            if torch.sigmoid(stop_pred[:, -1]).item() > 0.5:
+                break
+            
+            # 准备下一步输入
+            next_input = mel_output[:, -1:, :]
+            decoder_input = torch.cat([decoder_input, next_input], dim=1)
+        
+        # 拼接输出
+        mel_outputs = torch.cat(mel_outputs, dim=1)
+        
         return mel_outputs
 
-
-# 损失函数
 class TransformerTTSLoss(nn.Module):
     """
-    Transformer TTS 损失函数
+    TransformerTTS的损失函数
     """
     def __init__(self):
         super(TransformerTTSLoss, self).__init__()
@@ -346,14 +366,9 @@ class TransformerTTSLoss(nn.Module):
         
         return total_loss, mel_loss, stop_loss
 
-
-# 用于训练的函数
-import random
-import time
-
 def train_step(model, optimizer, criterion, batch, device):
     """
-    单步训练
+    训练单步
     
     参数:
         model: 模型
@@ -369,7 +384,9 @@ def train_step(model, optimizer, criterion, batch, device):
     text_ids = batch["text_ids"].to(device)
     speaker_embedding = batch["speaker_embedding"].to(device)
     mel_targets = batch["mel_targets"].to(device)
-    stop_targets = batch["stop_targets"].to(device)
+    
+    # 创建停止标志目标
+    stop_targets = create_stop_targets(mel_targets)
     
     # 前向传播
     mel_outputs, stop_preds = model(text_ids, speaker_embedding, mel_targets)
@@ -380,15 +397,13 @@ def train_step(model, optimizer, criterion, batch, device):
     # 反向传播
     optimizer.zero_grad()
     total_loss.backward()
-    
-    # 梯度裁剪
-    nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-    
-    # 更新参数
     optimizer.step()
     
-    return total_loss.item(), mel_loss.item(), stop_loss.item()
-
+    return {
+        "total_loss": total_loss.item(),
+        "mel_loss": mel_loss.item(),
+        "stop_loss": stop_loss.item()
+    }
 
 def create_stop_targets(mel_targets, stop_threshold=1e-5):
     """
@@ -399,10 +414,71 @@ def create_stop_targets(mel_targets, stop_threshold=1e-5):
         stop_threshold: 停止阈值
         
     返回:
-        stop_targets: [batch_size, mel_len]
+        [batch_size, mel_len]
     """
-    # 最后一帧为1，其他为0
-    batch_size, mel_len = mel_targets.size(0), mel_targets.size(1)
-    stop_targets = torch.zeros(batch_size, mel_len, device=mel_targets.device)
-    stop_targets[:, -1] = 1.0
-    return stop_targets 
+    # 计算每帧的能量
+    energy = mel_targets.norm(dim=2)
+    
+    # 最后一帧之后的帧为停止帧
+    batch_size, mel_len = energy.shape
+    stop_targets = torch.zeros_like(energy)
+    
+    for i in range(batch_size):
+        # 找到最后一个非零帧
+        last_frame = mel_len - 1
+        while last_frame > 0 and energy[i, last_frame] < stop_threshold:
+            last_frame -= 1
+        
+        # 最后一帧之后的帧为停止帧
+        if last_frame < mel_len - 1:
+            stop_targets[i, last_frame+1:] = 1
+    
+    return stop_targets
+
+class XTTSAdapter:
+    """
+    XTTS模型适配器
+    用于加载和使用XTTS预训练模型
+    """
+    def __init__(self, model_path, config_path, device="cpu"):
+        """
+        初始化XTTS适配器
+        
+        参数:
+            model_path: 预训练模型路径
+            config_path: 配置文件路径
+            device: 运行设备
+        """
+        self.device = device
+        self.model_path = model_path
+        self.config_path = config_path
+        
+        # 加载配置
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                self.config = yaml.safe_load(f)
+                print(f"已加载XTTS配置: {config_path}")
+        except Exception as e:
+            print(f"加载XTTS配置失败: {str(e)}")
+            self.config = {}
+        
+        print(f"XTTS适配器初始化完成，使用随机生成")
+        print(f"注意：实际模型加载需要Coqui TTS库，目前使用随机生成")
+    
+    def generate_mel(self, text, speaker_embedding):
+        """
+        生成梅尔频谱
+        
+        参数:
+            text: 文本
+            speaker_embedding: 说话人嵌入向量
+            
+        返回:
+            梅尔频谱
+        """
+        print(f"使用XTTS适配器生成随机梅尔频谱，文本: '{text}'")
+        # 生成随机梅尔频谱
+        # 假设梅尔频谱维度为80，长度根据文本长度生成
+        mel_len = len(text) * 5 + 50  # 简单估算
+        mel = np.random.randn(80, mel_len) * 0.1  # 控制幅度
+        return mel 
