@@ -47,6 +47,21 @@ function displayTrainingAudioList(audios) {
             </div>
         `;
         container.appendChild(audioElement);
+
+        // 添加点击事件处理
+        const checkbox = audioElement.querySelector(`input[type="checkbox"]`);
+        const customCheckbox = audioElement.querySelector('.checkbox-custom');
+        const audioInfo = audioElement.querySelector('.audio-info');
+
+        // 自定义复选框点击事件
+        customCheckbox.addEventListener('click', () => {
+            checkbox.checked = !checkbox.checked;
+        });
+
+        // 点击音频信息区域也可以选择
+        audioInfo.addEventListener('click', () => {
+            checkbox.checked = !checkbox.checked;
+        });
     });
 }
 

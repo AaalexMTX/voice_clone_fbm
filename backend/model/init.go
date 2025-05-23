@@ -80,7 +80,20 @@ func autoMigrate() error {
 		}
 	}
 
-	// 语音模型表迁移
+	// 语音模型表迁移 - 强制更新表结构
+	if contains(tables, "models") {
+		// 尝试修改列类型
+		if err := DB.Migrator().AlterColumn(&VoiceModel{}, "m_id"); err != nil {
+			fmt.Println("修改models表m_id列类型失败，尝试重建表:", err)
+
+			// 如果修改列失败，尝试删除并重建表
+			if err := DB.Migrator().DropTable("models"); err != nil {
+				return fmt.Errorf("删除models表失败: %v", err)
+			}
+			tables = removeFromSlice(tables, "models")
+		}
+	}
+
 	if !contains(tables, "models") {
 		if err := DB.Migrator().CreateTable(&VoiceModel{}); err != nil {
 			return err
@@ -103,6 +116,16 @@ func autoMigrate() error {
 	}
 
 	return nil
+}
+
+// removeFromSlice 从切片中移除指定元素
+func removeFromSlice(slice []string, element string) []string {
+	for i, v := range slice {
+		if v == element {
+			return append(slice[:i], slice[i+1:]...)
+		}
+	}
+	return slice
 }
 
 // contains 检查切片中是否包含某个字符串

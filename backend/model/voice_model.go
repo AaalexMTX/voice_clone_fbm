@@ -6,14 +6,14 @@ import (
 
 // VoiceModel 语音模型表
 type VoiceModel struct {
-	MID       string     `gorm:"type:char(32);unique;index;not null" json:"mid"` // 模型唯一ID
-	AID       string     `gorm:"type:char(32);index;not null" json:"aid"`        // 音频唯一ID
-	UID       string     `gorm:"type:char(32);index;not null" json:"uid"`        // 用户唯一ID
-	ModelName string     `gorm:"type:varchar(50);not null" json:"model_name"`    // 模型名称
-	ModelPath string     `gorm:"type:varchar(255)" json:"model_path"`            // 模型文件路径
-	State     int8       `gorm:"type:tinyint;default:1" json:"state"`            // 训练状态：1待训练 2已完成 3失败
-	Params    string     `gorm:"type:text" json:"params"`                        // 训练参数(JSON)
-	ErrorMsg  string     `gorm:"type:varchar(512)" json:"error_msg"`             // 错误信息
+	MID       string `gorm:"type:char(32);unique;index;not null" json:"mid"` // 模型唯一ID
+	AID       string `gorm:"type:char(32);index;not null" json:"aid"`        // 音频唯一ID
+	UID       string `gorm:"type:char(32);index;not null" json:"uid"`        // 用户唯一ID
+	ModelName string `gorm:"type:varchar(50);not null" json:"model_name"`    // 模型名称
+	ModelPath string `gorm:"type:varchar(255)" json:"model_path"`            // 模型文件路径
+	State     int8   `gorm:"type:tinyint;default:1" json:"state"`            // 训练状态：1待训练 2已完成 3失败
+	Params    string `gorm:"type:text" json:"params"`                        // 训练参数(JSON)
+	ErrorMsg  string `gorm:"type:varchar(512)" json:"error_msg"`             // 错误信息
 	gorm.Model
 }
 

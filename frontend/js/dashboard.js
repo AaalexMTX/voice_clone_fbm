@@ -708,28 +708,6 @@ function displayUserModels(models) {
 
     modelsContainer.appendChild(defaultModelCard);
 
-    // 添加假的训练完成模型 TEST_THCHS30_1
-    const thchsModelCard = document.createElement('div');
-    thchsModelCard.className = 'model-card'; // 不默认选中
-    thchsModelCard.dataset.modelId = 'thchs30_1';
-    thchsModelCard.innerHTML = `
-        <div class="model-icon">🎯</div>
-        <div class="model-info">
-            <div class="model-name">TEST_THCHS30_1</div>
-            <div class="model-date">2025-05-22 | <span style="color: #2ecc71;">训练完成</span></div>
-        </div>
-    `;
-
-    // 点击选择模型
-    thchsModelCard.addEventListener('click', () => {
-        document.querySelectorAll('.model-card').forEach(card => {
-            card.classList.remove('active');
-        });
-        thchsModelCard.classList.add('active');
-    });
-
-    modelsContainer.appendChild(thchsModelCard);
-
     // 添加用户模型
     models.forEach(model => {
         const date = new Date(model.createdAt);
@@ -737,11 +715,11 @@ function displayUserModels(models) {
 
         const modelCard = document.createElement('div');
         modelCard.className = 'model-card';
-        modelCard.dataset.modelId = model.id;
+        modelCard.dataset.modelId = model.mid;
         modelCard.innerHTML = `
             <div class="model-icon">🤖</div>
             <div class="model-info">
-                <div class="model-name">${model.name}</div>
+                <div class="model-name">${model.modelName}</div>
                 <div class="model-date">创建于 ${formattedDate}</div>
             </div>
         `;
@@ -757,7 +735,7 @@ function displayUserModels(models) {
         modelsContainer.appendChild(modelCard);
     });
 
-    // 不再显示"没有模型"的提示，因为我们已经添加了默认模型
+    // 如果没有用户模型，不显示"没有模型"提示，因为我们已经添加了默认模型
 }
 
 // 开始语音合成

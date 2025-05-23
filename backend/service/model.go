@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"voice_clone_fbm/backend/model"
@@ -44,8 +45,8 @@ func StartModelTraining(req *ModelTrainReq) (*ModelTrainResp, error) {
 		return nil, fmt.Errorf("用户无权访问该音频")
 	}
 
-	// 生成模型ID
-	mid := uuid.New().String()
+	// 生成模型ID - 使用与AID和UID相同的格式，移除UUID中的连字符
+	mid := strings.ReplaceAll(uuid.New().String(), "-", "")
 
 	// 生成模型保存路径
 	// 示例: data/{username}/models/{model_name}_{timestamp}
