@@ -201,15 +201,6 @@ function showTrainingStatus(message, type = 'info') {
 
 // 开始训练模型
 async function startTraining() {
-    // 获取选中的音频
-    const selectedAudios = Array.from(document.querySelectorAll('#training-audio-list input[type="checkbox"]:checked'))
-        .map(checkbox => checkbox.value);
-
-    if (selectedAudios.length === 0) {
-        showTrainingStatus('请选择至少一个训练音频', 'error');
-        return;
-    }
-
     // 获取模型名称
     const modelName = document.getElementById('model-name').value.trim();
     if (!modelName) {
@@ -217,44 +208,95 @@ async function startTraining() {
         return;
     }
 
-    // 获取训练参数
-    const trainingParams = {
-        epochs: parseInt(document.getElementById('epochs').value),
-        batchSize: parseInt(document.getElementById('batch-size').value),
-        learningRate: parseFloat(document.getElementById('learning-rate').value)
-    };
-
     // 显示训练开始状态
-    showTrainingStatus('正在准备开始训练...', 'loading');
+    showTrainingStatus('正在创建模型...', 'loading');
 
     try {
-        const response = await fetch(`${API_BASE_URL}/model/train`, {
+        // 获取选中的音频ID
+        let audioId = "";
+        const selectedAudios = Array.from(document.querySelectorAll('#training-audio-list input[type="checkbox"]:checked'));
+
+        if (selectedAudios.length > 0) {
+            audioId = selectedAudios[0].value;
+        } else {
+            // 尝试获取第一个音频的ID
+            const audioList = document.querySelectorAll('#training-audio-list .audio-item');
+            if (audioList.length > 0) {
+                const firstAudio = audioList[0];
+                const checkbox = firstAudio.querySelector('input[type="checkbox"]');
+                if (checkbox && checkbox.value) {
+                    audioId = checkbox.value;
+                } else {
+                    showTrainingStatus('请选择至少一个训练音频', 'error');
+                    return;
+                }
+            } else {
+                showTrainingStatus('没有可用的音频，请先上传音频', 'error');
+                return;
+            }
+        }
+
+        console.log("选择的音频ID:", audioId);
+
+        // 构建训练参数
+        const params = JSON.stringify({
+            epochs: parseInt(document.getElementById('epochs').value) || 100,
+            batchSize: parseInt(document.getElementById('batch-size').value) || 32,
+            learningRate: parseFloat(document.getElementById('learning-rate').value) || 0.001,
+            timestamp: Date.now()
+        });
+
+        // 调用创建训练中模型的API接口
+        const response = await fetch(`${API_BASE_URL}/model/create_training`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             },
             body: JSON.stringify({
-                modelName,
-                audioIds: selectedAudios,
-                params: trainingParams
+                aid: audioId,
+                modelName: modelName,
+                params: params
             })
         });
 
-        const data = await response.json();
+        // 打印响应状态
+        console.log("API响应状态:", response.status);
+
+        let data;
+        try {
+            data = await response.json();
+        } catch (parseError) {
+            console.error("解析响应JSON失败:", parseError);
+            showTrainingStatus('解析响应失败，请检查网络连接', 'error');
+            return;
+        }
+
+        console.log("API响应数据:", data);
+
         if (response.ok) {
-            showTrainingStatus('模型训练已开始，请耐心等待...', 'success');
-            pollTrainingStatus(data.taskId);
+            // 显示成功消息
+            showTrainingStatus('模型创建成功，已处于训练中状态', 'success');
+
+            // 清空模型名称输入框
+            document.getElementById('model-name').value = '';
 
             // 刷新模型列表
             setTimeout(() => {
                 loadUserModelsForTraining();
-            }, 2000);
+            }, 1000);
         } else {
-            showTrainingStatus(data.error || '开始训练失败', 'error');
+            // 处理错误情况
+            let errorMsg = '创建模型失败';
+            if (data && data.error) {
+                errorMsg = `错误: ${data.error}`;
+                console.error('API错误:', data.error);
+            }
+            showTrainingStatus(errorMsg, 'error');
         }
     } catch (error) {
-        showTrainingStatus('网络错误，请稍后重试', 'error');
+        console.error('创建模型错误:', error);
+        showTrainingStatus(`错误: ${error.message || '请稍后重试'}`, 'error');
     }
 }
 

@@ -51,6 +51,8 @@ func InitRouter() *gin.Engine {
 			{
 				// 开始训练模型
 				model.POST("/train", controller.StartTraining)
+				// 创建训练中状态的模型（不实际训练）
+				model.POST("/create_training", controller.CreateTrainingModel)
 				// 获取用户的所有模型
 				model.GET("/list", controller.GetUserModels)
 			}
