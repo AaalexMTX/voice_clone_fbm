@@ -60,11 +60,29 @@ data/*
 *.ogg
 *.flac
 
-# Model files
+# Model files - 修改为更精细的规则
+# 保留当前使用的模型文件，但忽略其他大型模型文件
 *.pth
-*.pt
 *.onnx
 *.bin
+
+# 声码器模型子目录 - 只保留当前使用的模型
+model/vocoder/models/LJ_V1/
+model/vocoder/models/LJ_V2/
+model/vocoder/models/LJ_V3/
+model/vocoder/models/VCTK_V1/
+model/vocoder/models/VCTK_V2/
+model/vocoder/models/VCTK_V3/
+model/vocoder/models/LJ_FT_T2_V1/
+model/vocoder/models/LJ_FT_T2_V2/
+model/vocoder/models/LJ_FT_T2_V3/
+model/vocoder/models/UNIVERSAL_V1/
+
+# 排除PT文件，但明确包含我们需要保留的文件
+*.pt
+!model/vocoder/models/hifigan_vocoder.pt
+!model/vocoder/models/torchaudio_vocoder.pt
+!model/vocoder/models/torchaudio_vocoder_meta.pt
 
 # Temp files
 *.tmp

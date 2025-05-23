@@ -1,6 +1,6 @@
 data:
   output_dir: E:\Pycharm2024\Code_Item\voice_clone_fbm\model\outputs
-  temp_dir: C:\Users\Alex\AppData\Local\Temp
+  temp_dir: E:\Pycharm2024\Code_Item\voice_clone_fbm\model\Temp
   upload_dir: E:\Pycharm2024\Code_Item\voice_clone_fbm\model\uploads
 model:
   # 通用配置

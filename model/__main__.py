@@ -136,7 +136,7 @@ def download_vocoders(args):
     # 预定义的模型URL
     model_urls = {
         "hifigan": {
-            "model": "https://github.com/jik876/hifi-gan/releases/download/v1/g_02500000",
+            "model": "https://github.com/jik876/hifi-gan/releases/download/v1/g_02500000.pt",
             "config": "https://raw.githubusercontent.com/jik876/hifi-gan/master/config_v1.json"
         },
         "universal": {

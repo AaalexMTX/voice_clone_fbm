@@ -9,6 +9,7 @@ from pathlib import Path
 
 from ..speaker_encoder.speaker_encoder import SpeakerEncoder
 from ..speaker_encoder.audio_processing import preprocess_wav
+from ..vocoder.hifigan import HiFiGAN
 from ..vocoder.griffinlim import GriffinLim
 from .model import VoiceCloneModel
 
@@ -31,14 +32,14 @@ class VoiceCloneSystem:
     3. 将梅尔频谱转换为音频波形
     """
     
-    def __init__(self, model_dir="models", device=None, vocoder_type="griffinlim"):
+    def __init__(self, model_dir="models", device=None, vocoder_type="hifigan"):
         """
         初始化语音克隆系统
         
         参数:
             model_dir: 模型目录
             device: 设备 (None为自动选择)
-            vocoder_type: 声码器类型，当前默认: "griffinlim"
+            vocoder_type: 声码器类型，当前默认: "hifigan"
         """
         # 设置设备
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -48,13 +49,13 @@ class VoiceCloneSystem:
         self.model_dir = Path(model_dir)
         self.encoder_path = self.model_dir / "speaker_encoder.pt"
         self.tts_model_path = self.model_dir / "tts_model.pt"
-        self.vocoder_path = self.model_dir / "torchaudio_vocoder.pt"
-        self.vocoder_config = self.model_dir / "torchaudio_vocoder_config.json"
+        self.vocoder_path = self.model_dir / "hifigan_vocoder.pt"
+        self.vocoder_config = self.model_dir / "hifigan_config.json"
         
         # 初始化模型
         self._init_models(vocoder_type)
     
-    def _init_models(self, vocoder_type="griffinlim"):
+    def _init_models(self, vocoder_type="hifigan"):
         """初始化所有模型"""
         # 初始化说话人编码器
         self.speaker_encoder = SpeakerEncoder().to(self.device)
@@ -74,16 +75,32 @@ class VoiceCloneSystem:
             logger.warning(f"找不到TTS模型: {self.tts_model_path}，使用未训练的模型")
         self.tts_model.eval()
         
-        # 初始化声码器 - 默认使用Griffin-Lim
-        if os.path.exists(self.vocoder_path):
-            self.vocoder = GriffinLim.from_pretrained(
-                str(self.vocoder_path), 
-                str(self.vocoder_config) if os.path.exists(self.vocoder_config) else None
-            ).to(self.device)
-            logger.info(f"加载Griffin-Lim声码器: {self.vocoder_path}")
+        # 初始化声码器
+        if vocoder_type == "griffinlim":
+            # 使用Griffin-Lim声码器
+            griffin_path = self.model_dir / "torchaudio_vocoder.pt"
+            griffin_config = self.model_dir / "torchaudio_vocoder_config.json"
+            
+            if os.path.exists(griffin_path):
+                self.vocoder = GriffinLim.from_pretrained(
+                    str(griffin_path),
+                    str(griffin_config) if os.path.exists(griffin_config) else None
+                ).to(self.device)
+                logger.info(f"加载Griffin-Lim声码器: {griffin_path}")
+            else:
+                logger.warning(f"找不到Griffin-Lim声码器: {griffin_path}，使用未训练的模型")
+                self.vocoder = GriffinLim().to(self.device)
         else:
-            logger.warning(f"找不到Griffin-Lim声码器: {self.vocoder_path}，使用默认模型")
-            self.vocoder = GriffinLim().to(self.device)
+            # 使用HIFI-GAN声码器
+            if os.path.exists(self.vocoder_path):
+                self.vocoder = HiFiGAN.from_pretrained(
+                    str(self.vocoder_path), 
+                    str(self.vocoder_config) if os.path.exists(self.vocoder_config) else None
+                ).to(self.device)
+                logger.info(f"加载HIFI-GAN声码器: {self.vocoder_path}")
+            else:
+                logger.warning(f"找不到HIFI-GAN声码器: {self.vocoder_path}，使用未训练的模型")
+                self.vocoder = HiFiGAN().to(self.device)
         
         self.vocoder.eval()
     

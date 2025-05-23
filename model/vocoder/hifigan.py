@@ -15,6 +15,13 @@ from typing import Optional, Dict, Any
 
 from .vocoder_base import Vocoder, VocoderType
 
+# 尝试导入torchaudio
+try:
+    import torchaudio
+    TORCHAUDIO_AVAILABLE = True
+except ImportError:
+    TORCHAUDIO_AVAILABLE = False
+
 class ResBlock(nn.Module):
     """HiFi-GAN残差块"""
     def __init__(self, channels, kernel_size=3, dilation=(1, 3, 5)):
@@ -72,6 +79,10 @@ class HiFiGAN(nn.Module):
         self.num_upsamples = len(upsample_rates)
         self.vocoder_type = VocoderType.HIFIGAN
         
+        # 初始化TorchAudio模型
+        self.torchaudio_model = None
+        self.torchaudio_processor = None
+        
         # 初始卷积层
         self.conv_pre = nn.utils.weight_norm(nn.Conv1d(n_mels, upsample_initial_channel, 7, 1, padding=3))
         
@@ -103,6 +114,20 @@ class HiFiGAN(nn.Module):
         返回:
             [batch_size, 1, time*factor]的音频波形
         """
+        # 如果使用TorchAudio模型，则直接使用它
+        if self.torchaudio_model is not None and self.torchaudio_processor is not None:
+            # 确保输入格式正确
+            if mel_spectrogram.dim() == 3 and mel_spectrogram.size(2) == self.n_mels:
+                mel = mel_spectrogram.transpose(1, 2)  # [batch, time, n_mels] -> [batch, n_mels, time]
+            else:
+                mel = mel_spectrogram
+            
+            # 使用TorchAudio模型生成波形
+            with torch.no_grad():
+                waveform = self.torchaudio_processor(mel)
+            return waveform
+        
+        # 否则使用自定义实现
         # 转换输入维度 [batch, time, n_mels] -> [batch, n_mels, time]
         if mel_spectrogram.dim() == 3 and mel_spectrogram.size(2) == self.n_mels:
             x = mel_spectrogram.transpose(1, 2)
@@ -134,19 +159,53 @@ class HiFiGAN(nn.Module):
         return x
     
     @classmethod
-    def from_pretrained(cls, model_path: str, config_path: Optional[str] = None):
+    def from_pretrained(cls, model_path: str = None, config_path: Optional[str] = None):
         """
         从预训练模型加载HiFi-GAN声码器
         
         参数:
-            model_path: 预训练模型路径
+            model_path: 预训练模型路径，如果为None则尝试使用TorchAudio
             config_path: 模型配置路径
             
         返回:
             加载了预训练权重的HiFiGAN实例
         """
-        if not os.path.exists(model_path):
-            raise FileNotFoundError(f"预训练模型文件不存在: {model_path}")
+        # 尝试使用TorchAudio的预训练模型
+        if model_path is None or not os.path.exists(model_path):
+            if TORCHAUDIO_AVAILABLE:
+                try:
+                    print("使用TorchAudio官方声码器模型")
+                    model = cls()
+                    
+                    # 加载TorchAudio的Tacotron2模型
+                    tacotron2_bundle = torchaudio.pipelines.TACOTRON2_WAVERNN_PHONE_LJSPEECH
+                    
+                    # 提取声码器部分
+                    model.torchaudio_model = tacotron2_bundle.vocoder
+                    model.torchaudio_processor = tacotron2_bundle.vocoder
+                    model.n_mels = 80  # Tacotron2使用80个梅尔频带
+                    
+                    print("成功加载TorchAudio声码器")
+                    return model
+                except Exception as e:
+                    print(f"加载TorchAudio声码器失败: {str(e)}，尝试使用Griffin-Lim")
+                    try:
+                        # 尝试使用Griffin-Lim
+                        tacotron2_bundle = torchaudio.pipelines.TACOTRON2_GRIFFINLIM_PHONE_LJSPEECH
+                        model = cls()
+                        model.torchaudio_model = tacotron2_bundle.vocoder
+                        model.torchaudio_processor = tacotron2_bundle.vocoder
+                        model.n_mels = 80
+                        print("成功加载TorchAudio Griffin-Lim声码器")
+                        return model
+                    except Exception as e:
+                        print(f"加载TorchAudio Griffin-Lim声码器失败: {str(e)}，使用未训练的模型")
+            
+            if model_path is None:
+                print("未指定模型路径，使用未训练的HiFi-GAN模型")
+                return cls()
+            else:
+                raise FileNotFoundError(f"预训练模型文件不存在: {model_path}")
         
         if config_path is None or not os.path.exists(config_path):
             # 使用默认配置
@@ -168,13 +227,57 @@ class HiFiGAN(nn.Module):
         
         # 加载预训练权重
         try:
-            # 尝试不使用weights_only参数
-            checkpoint = torch.load(model_path, map_location=torch.device('cpu'))
-        except TypeError:
-            # 如果出现TypeError，可能是因为PyTorch版本需要weights_only参数
+            # 尝试使用weights_only=False参数
             checkpoint = torch.load(model_path, map_location=torch.device('cpu'), weights_only=False)
-            
-        model.load_state_dict(checkpoint)
-        print(f"成功加载预训练HiFi-GAN声码器: {model_path}")
+        except Exception as e:
+            print(f"加载模型失败: {str(e)}，尝试其他方法")
+            try:
+                # 尝试使用默认参数
+                checkpoint = torch.load(model_path, map_location=torch.device('cpu'))
+            except Exception as e:
+                print(f"加载模型再次失败: {str(e)}，尝试使用TorchAudio模型")
+                if TORCHAUDIO_AVAILABLE:
+                    try:
+                        tacotron2_bundle = torchaudio.pipelines.TACOTRON2_WAVERNN_PHONE_LJSPEECH
+                        model.torchaudio_model = tacotron2_bundle.vocoder
+                        model.torchaudio_processor = tacotron2_bundle.vocoder
+                        model.n_mels = 80
+                        print("成功加载TorchAudio声码器")
+                        return model
+                    except Exception:
+                        try:
+                            tacotron2_bundle = torchaudio.pipelines.TACOTRON2_GRIFFINLIM_PHONE_LJSPEECH
+                            model.torchaudio_model = tacotron2_bundle.vocoder
+                            model.torchaudio_processor = tacotron2_bundle.vocoder
+                            model.n_mels = 80
+                            print("成功加载TorchAudio Griffin-Lim声码器")
+                            return model
+                        except Exception as e:
+                            print(f"加载TorchAudio声码器失败: {str(e)}，使用未训练的模型")
+                            return cls()
+                else:
+                    raise
+        
+        # 检查模型结构，处理不同格式的模型文件
+        if 'generator' in checkpoint:
+            print("检测到HiFi-GAN原始格式模型，提取generator部分")
+            checkpoint = checkpoint['generator']
+        
+        try:
+            model.load_state_dict(checkpoint)
+            print(f"成功加载预训练HiFi-GAN声码器: {model_path}")
+        except Exception as e:
+            print(f"模型状态加载失败: {str(e)}，可能是模型格式不兼容")
+            # 尝试使用Griffin-Lim作为备选
+            if TORCHAUDIO_AVAILABLE:
+                try:
+                    tacotron2_bundle = torchaudio.pipelines.TACOTRON2_GRIFFINLIM_PHONE_LJSPEECH
+                    model.torchaudio_model = tacotron2_bundle.vocoder
+                    model.torchaudio_processor = tacotron2_bundle.vocoder
+                    model.n_mels = 80
+                    print("无法加载HiFi-GAN模型，改用TorchAudio Griffin-Lim声码器")
+                    return model
+                except Exception:
+                    print("所有声码器加载尝试均失败，使用未训练的模型")
         
         return model 
