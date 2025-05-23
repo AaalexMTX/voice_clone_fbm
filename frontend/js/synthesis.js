@@ -546,63 +546,135 @@ function displayInferenceHistory(histories) {
         const date = new Date(history.created_at);
         const formattedDate = date.toLocaleString('zh-CN');
 
+        // 计算音频时长（如果有）
+        let duration = history.duration || 0;
+        const durationText = duration > 0 ?
+            `${Math.floor(duration / 60)}:${String(Math.floor(duration % 60)).padStart(2, '0')}` :
+            '00:00';
+
         const historyItem = document.createElement('div');
         historyItem.className = 'history-item';
         historyItem.innerHTML = `
-            <div class="history-time">${formattedDate}</div>
-            <div class="history-content">
-                <div class="history-text">${history.audio_name || '未命名音频'}</div>
-                <div class="history-details">
-                    <div class="history-model">使用模型: ${history.model_name || '默认模型'}</div>
-                    <div class="history-content-text">${history.input_text.length > 30 ? history.input_text.substring(0, 30) + '...' : history.input_text}</div>
+            <div class="history-header">
+                <div class="history-title">
+                    <span class="history-audio-name">${history.audio_name || '未命名音频'}</span>
+                    <span class="history-date">${formattedDate}</span>
+                </div>
+                <div class="history-duration">
+                    <i class="duration-icon">⏱</i>
+                    <span>${durationText}</span>
+                </div>
+            </div>
+            <div class="history-body">
+                <div class="history-model-info">
+                    <div class="model-badge">${history.model_name || '默认模型'}</div>
+                </div>
+                <div class="history-text-preview">
+                    <i class="text-icon">💬</i>
+                    <span>${history.input_text.length > 50 ? history.input_text.substring(0, 50) + '...' : history.input_text}</span>
+                </div>
+                <div class="history-waveform">
+                    <div class="mini-waveform"></div>
                 </div>
             </div>
             <div class="history-actions">
-                <button class="history-play" data-audio="${history.output_path || ''}">
+                <button class="history-play-btn" data-audio="${history.output_path || ''}">
+                    <i class="play-icon">▶</i>
                     <span>播放</span>
+                </button>
+                <button class="history-download-btn" data-audio="${history.output_path || ''}" data-name="${history.audio_name || '未命名音频'}">
+                    <i class="download-icon">⬇</i>
                 </button>
             </div>
         `;
 
         // 添加播放功能
-        const playButton = historyItem.querySelector('.history-play');
+        const playButton = historyItem.querySelector('.history-play-btn');
         if (playButton) {
             playButton.addEventListener('click', () => {
+                // 重置所有播放按钮
+                document.querySelectorAll('.history-play-btn').forEach(btn => {
+                    btn.innerHTML = '<i class="play-icon">▶</i><span>播放</span>';
+                    btn.classList.remove('playing');
+                });
+
                 const audio = document.getElementById('synthesis-audio');
                 if (audio) {
-                    audio.src = playButton.dataset.audio;
-                    audio.play();
+                    if (audio.src === playButton.dataset.audio && !audio.paused) {
+                        // 如果是当前音频且正在播放，则暂停
+                        audio.pause();
+                        playButton.innerHTML = '<i class="play-icon">▶</i><span>播放</span>';
+                        playButton.classList.remove('playing');
+                    } else {
+                        // 否则播放新音频
+                        audio.src = playButton.dataset.audio;
+                        audio.play();
+                        playButton.innerHTML = '<i class="play-icon">⏸</i><span>暂停</span>';
+                        playButton.classList.add('playing');
 
-                    // 更新当前播放的音频名称
-                    const audioNameInput = document.getElementById('synthesis-audio-name');
-                    if (audioNameInput) {
-                        audioNameInput.value = history.audio_name || '未命名音频';
-                    }
+                        // 音频播放结束时重置按钮
+                        audio.onended = () => {
+                            playButton.innerHTML = '<i class="play-icon">▶</i><span>播放</span>';
+                            playButton.classList.remove('playing');
+                        };
 
-                    // 显示音频结果区域
-                    showSynthesisResult(playButton.dataset.audio);
+                        // 更新当前播放的音频名称
+                        const audioNameInput = document.getElementById('synthesis-audio-name');
+                        if (audioNameInput) {
+                            audioNameInput.value = history.audio_name || '未命名音频';
+                        }
 
-                    // 更新当前合成信息
-                    currentSynthesisInfo = {
-                        audioUrl: playButton.dataset.audio,
-                        text: history.input_text,
-                        modelId: history.mid,
-                        modelName: history.model_name || '默认模型',
-                        audioName: history.audio_name || '未命名音频',
-                        isSaved: true
-                    };
+                        // 显示音频结果区域
+                        showSynthesisResult(playButton.dataset.audio);
 
-                    // 禁用保存按钮，因为已经保存过了
-                    const saveBtn = document.getElementById('save-synthesis');
-                    if (saveBtn) {
-                        saveBtn.disabled = true;
-                        saveBtn.style.opacity = '0.5';
-                        saveBtn.style.cursor = 'not-allowed';
+                        // 更新当前合成信息
+                        currentSynthesisInfo = {
+                            audioUrl: playButton.dataset.audio,
+                            text: history.input_text,
+                            modelId: history.mid,
+                            modelName: history.model_name || '默认模型',
+                            audioName: history.audio_name || '未命名音频',
+                            isSaved: true
+                        };
+
+                        // 禁用保存按钮，因为已经保存过了
+                        const saveBtn = document.getElementById('save-synthesis');
+                        if (saveBtn) {
+                            saveBtn.disabled = true;
+                            saveBtn.style.opacity = '0.5';
+                            saveBtn.style.cursor = 'not-allowed';
+                        }
                     }
                 }
             });
         }
 
+        // 添加下载功能
+        const downloadButton = historyItem.querySelector('.history-download-btn');
+        if (downloadButton) {
+            downloadButton.addEventListener('click', () => {
+                const link = document.createElement('a');
+                link.href = downloadButton.dataset.audio;
+                link.download = `${downloadButton.dataset.name}.mp3`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                showSynthesisMessage('音频下载已开始', 'success');
+            });
+        }
+
         historyList.appendChild(historyItem);
+
+        // 为每个历史记录项添加波形动画
+        const waveform = historyItem.querySelector('.mini-waveform');
+        if (waveform) {
+            for (let i = 0; i < 12; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'wave-bar';
+                bar.style.setProperty('--bar-index', i);
+                waveform.appendChild(bar);
+            }
+        }
     });
 } 

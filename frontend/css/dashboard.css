@@ -1618,91 +1618,215 @@ button:hover {
 
 /* 历史记录项样式 */
 .history-item {
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 15px;
+    border: 1px solid #e8eaed;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
     background-color: #fff;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     transition: all 0.3s ease;
     display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .history-item:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     transform: translateY(-2px);
+    border-color: #d4e6f1;
 }
 
-.history-time {
+/* 历史记录头部 */
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f0f2f5;
+    padding-bottom: 10px;
+}
+
+.history-title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.history-audio-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.history-date {
     font-size: 12px;
     color: #7f8c8d;
-    margin-bottom: 8px;
-    width: 100%;
 }
 
-.history-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.history-text {
-    font-size: 16px;
-    font-weight: 500;
-    color: #2c3e50;
-    margin-bottom: 5px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.history-details {
+.history-duration {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
     align-items: center;
+    gap: 5px;
+    background: #f8f9fa;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    color: #34495e;
 }
 
-.history-model {
-    font-size: 13px;
+.duration-icon {
+    color: #e74c3c;
+    font-style: normal;
+}
+
+/* 历史记录主体 */
+.history-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.history-model-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.model-badge {
+    background: #e3f2fd;
+    color: #1976d2;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.history-text-preview {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background: #f9f9f9;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #555;
+    line-height: 1.5;
+}
+
+.text-icon {
+    font-style: normal;
+    margin-top: 2px;
     color: #3498db;
 }
 
-.history-content-text {
-    font-size: 13px;
-    color: #7f8c8d;
-    white-space: nowrap;
+.history-waveform {
+    height: 30px;
+    background: #f8f9fa;
+    border-radius: 6px;
     overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+    position: relative;
 }
 
+.mini-waveform {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 3px;
+    padding: 0 10px;
+}
+
+.mini-waveform .wave-bar {
+    width: 3px;
+    height: 15px;
+    background: #e0e0e0;
+    border-radius: 1px;
+}
+
+/* 历史记录操作区 */
 .history-actions {
     display: flex;
     align-items: center;
     gap: 10px;
+    margin-top: 5px;
 }
 
-.history-play {
+.history-play-btn {
+    flex: 1;
     background-color: #3498db;
     color: white;
     border: none;
-    border-radius: 4px;
-    padding: 5px 15px;
+    border-radius: 8px;
+    padding: 8px 15px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 500;
 }
 
-.history-play:hover {
+.history-play-btn:hover {
     background-color: #2980b9;
+    transform: translateY(-1px);
+}
+
+.history-play-btn.playing {
+    background-color: #e74c3c;
+}
+
+.history-download-btn {
+    width: 36px;
+    height: 36px;
+    background-color: #f8f9fa;
+    color: #3498db;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.history-download-btn:hover {
+    background-color: #edf7ff;
+    color: #2980b9;
+    border-color: #bbd9f1;
+}
+
+.play-icon, .download-icon {
+    font-style: normal;
 }
 
 .no-history {
     text-align: center;
-    padding: 30px;
+    padding: 40px 20px;
     color: #7f8c8d;
-    font-style: italic;
+    background: #f8f9fa;
+    border-radius: 12px;
+    font-size: 15px;
+}
+
+/* 响应式调整 */
+@media screen and (max-width: 768px) {
+    .history-item {
+        padding: 12px;
+    }
+    
+    .history-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .history-duration {
+        align-self: flex-start;
+    }
+    
+    .history-actions {
+        flex-direction: row;
+    }
 }
 
 /* 没有模型时的样式 */
@@ -2092,24 +2216,4 @@ audio {
     font-weight: 600;
     border-bottom: 1px solid #e0e0e0;
     padding-bottom: 10px;
-}
-
-/* 响应式调整 */
-@media screen and (max-width: 768px) {
-    .history-item {
-        flex-direction: column;
-    }
-    
-    .history-time {
-        margin-bottom: 10px;
-    }
-    
-    .history-actions {
-        margin-top: 15px;
-        width: 100%;
-    }
-    
-    .history-play {
-        width: 100%;
-    }
 } 

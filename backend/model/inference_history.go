@@ -85,7 +85,7 @@ type HistoryDetail struct {
 func (h *InferenceHistory) GetHistoryDetailByHID(db *gorm.DB, hid string) (*HistoryDetail, error) {
 	var detail HistoryDetail
 	err := db.Table("inference_histories as h").
-		Select("h.*, u.username, a.name as audio_name, m.model_path as model_name").
+		Select("h.*, u.username, a.name as audio_name, m.model_name as model_name").
 		Joins("LEFT JOIN users u ON h.uid = u.uid").
 		Joins("LEFT JOIN user_audio_models m ON h.mid = m.mid").
 		Joins("LEFT JOIN audios a ON m.a_id = a.a_id").
@@ -98,10 +98,7 @@ func (h *InferenceHistory) GetHistoryDetailByHID(db *gorm.DB, hid string) (*Hist
 func (h *InferenceHistory) GetHistoryDetailsByUID(db *gorm.DB, uid string) ([]HistoryDetail, error) {
 	var details []HistoryDetail
 	err := db.Table("inference_histories as h").
-		Select("h.*, u.username, a.name as audio_name, m.model_path as model_name").
-		Joins("LEFT JOIN users u ON h.uid = u.uid").
-		Joins("LEFT JOIN user_audio_models m ON h.mid = m.mid").
-		Joins("LEFT JOIN audios a ON m.a_id = a.a_id").
+		Select("h.*").
 		Where("h.uid = ? AND h.deleted_at IS NULL", uid).
 		Order("h.created_at DESC").
 		Find(&details).Error
